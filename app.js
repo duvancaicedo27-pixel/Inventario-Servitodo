@@ -1669,7 +1669,7 @@ function dibujarReporte(
     ctx.font="bold 18px Arial";
 
     ctx.fillText(
-        "Duvan C",
+        "Duvan Caicedo",
         f2+73,
         footerY+62
     );
