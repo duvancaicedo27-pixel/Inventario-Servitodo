@@ -264,7 +264,14 @@ function renderizarColaSincronizacion(){
         firmaNotificacion="";
         return;
     }
-    const inventario=detallePendientesInventario.map(op=>{const p=op.payload||{};return`<div class="cola-item inventario"><div class="cola-item-tipo">INVENTARIO</div><div class="cola-item-linea"><div class="cola-item-info"><strong>${escaparHTML(p.cliente||"Sin cliente")} · ${escaparHTML(p.elemento||"Sin elemento")}</strong><span>${formatear(p.cantidad)} und · ${escaparHTML(p.estado||"Sin estado")}${p.hora?" · "+escaparHTML(p.hora):""}</span></div><div class="cola-item-estado">${sincronizando?"SINCRONIZANDO":"PENDIENTE"}</div></div></div>`}).join("");
+    const inventario=detallePendientesInventario.map(op=>{
+        const p=op.payload||{};
+        const esEliminar=String(p.accion||"")==="eliminarMovimiento";
+        if(esEliminar){
+            return`<div class="cola-item inventario"><div class="cola-item-tipo" style="background:#fbeaea;color:#c62828">ELIMINAR</div><div class="cola-item-linea"><div class="cola-item-info"><strong>${escaparHTML(p.cliente||"Movimiento pendiente")}${p.elemento?" · "+escaparHTML(p.elemento):""}</strong><span>${p.cantidad?formatear(p.cantidad)+" und · ":""}${escaparHTML(p.estado||"Eliminación pendiente")}</span></div><div class="cola-item-estado">${sincronizando?"ELIMINANDO":"PENDIENTE"}</div></div></div>`;
+        }
+        return`<div class="cola-item inventario"><div class="cola-item-tipo">INVENTARIO</div><div class="cola-item-linea"><div class="cola-item-info"><strong>${escaparHTML(p.cliente||"Sin cliente")} · ${escaparHTML(p.elemento||"Sin elemento")}</strong><span>${formatear(p.cantidad)} und · ${escaparHTML(p.estado||"Sin estado")}${p.hora?" · "+escaparHTML(p.hora):""}</span></div><div class="cola-item-estado">${sincronizando?"SINCRONIZANDO":"PENDIENTE"}</div></div></div>`;
+    }).join("");
     const xcc=detallePendientesXCC.map(op=>{const p=op.payload||{};return`<div class="cola-item xcc"><div class="cola-item-tipo">ESTIBAS XCC</div><div class="cola-item-linea"><div class="cola-item-info"><strong>${escaparHTML(p.cliente||"Sin cliente")}</strong><span>${formatear(p.inventarioActual)} estibas · objetivo ${formatear(p.objetivo)}</span></div><div class="cola-item-estado">${sincronizando?"SINCRONIZANDO":"PENDIENTE"}</div></div></div>`}).join("");
     const firma=JSON.stringify({total,inv:detallePendientesInventario.map(x=>x.id),xcc:detallePendientesXCC.map(x=>x.id),sincronizando});
     const cambio=firma!==firmaNotificacion;
@@ -313,27 +320,72 @@ async function sincronizarPendientes(){
     sincronizando=true;
     try{
         await limpiarOperacionesInvalidas();
-        const ops=await dbAll("operaciones");
+        const todas=await dbAll("operaciones");
+        // Las operaciones normales se procesan primero.
+        // Las eliminaciones se procesan al final y de MAYOR a MENOR FILA.
+        // Así, al borrar una fila, nunca se invalida la posición de otra eliminación pendiente.
+        const normales=todas.filter(op=>String(op?.payload?.accion||"")!=="eliminarMovimiento");
+        const eliminaciones=todas
+            .filter(op=>String(op?.payload?.accion||"")==="eliminarMovimiento")
+            .sort((a,b)=>(Number(b?.payload?.fila)||0)-(Number(a?.payload?.fila)||0));
+        const ops=[...normales,...eliminaciones];
         detallePendientesInventario=ops;
         pendientesInventario=ops.length;
         renderizarEstadoConexion();
         for(const op of ops){
             try{
-                const respuesta=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload),keepalive:true});
-                const resultado=await respuesta.json();
-                if(!resultado.ok)throw new Error(resultado.error||"Error de sincronización");
-                if(op.payload.accion==="eliminarMovimiento"){
-                    const idx=registros.findIndex(r=>r.id===op.payload.localId);
-                    if(idx>=0)registros.splice(idx,1);
-                }else{
-                    const item=registros.find(r=>r.id===op.payload.localId);
-                    if(item){item.sincronizado=true;item.fila=resultado.fila||item.fila;await dbPut("movimientos",item);}
+                const payload=op.payload||{};
+                if(payload.accion==="eliminarMovimiento" && !(Number(payload.fila)>=2)){
+                    await dbDelete("operaciones",op.id);
+                    detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
+                    pendientesInventario=detallePendientesInventario.length;
+                    renderizarEstadoConexion();
+                    continue;
                 }
+
+                const respuesta=await fetch(API_URL,{
+                    method:"POST",
+                    headers:{"Content-Type":"text/plain;charset=utf-8"},
+                    body:JSON.stringify(payload),
+                    keepalive:true
+                });
+                const resultado=await respuesta.json();
+
+                // Si el servidor confirma que esa fila ya no existe, el objetivo de la eliminación
+                // ya está cumplido: retiramos la operación sin reintentarlo indefinidamente.
+                if(!resultado.ok){
+                    const msg=String(resultado.error||"");
+                    if(payload.accion==="eliminarMovimiento" && /ya no existe|no existe/i.test(msg)){
+                        await dbDelete("operaciones",op.id);
+                        detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
+                        pendientesInventario=detallePendientesInventario.length;
+                        renderizarEstadoConexion();
+                        continue;
+                    }
+                    throw new Error(resultado.error||"Error de sincronización");
+                }
+
+                if(payload.accion==="eliminarMovimiento"){
+                    const idx=registros.findIndex(r=>r.id===payload.localId);
+                    if(idx>=0)registros.splice(idx,1);
+                    if(payload.localId)await dbDelete("movimientos",payload.localId).catch(()=>{});
+                }else{
+                    const item=registros.find(r=>r.id===payload.localId);
+                    if(item){
+                        item.sincronizado=true;
+                        item.fila=resultado.fila||item.fila;
+                        await dbPut("movimientos",item);
+                    }
+                }
+
                 await dbDelete("operaciones",op.id);
                 detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
                 pendientesInventario=detallePendientesInventario.length;
                 renderizarEstadoConexion();
-            }catch(e){console.warn("Pendiente no sincronizado",e);break;}
+            }catch(e){
+                console.warn("Pendiente no sincronizado",e);
+                break;
+            }
         }
     }finally{
         sincronizando=false;
@@ -753,7 +805,21 @@ async function eliminarMovimiento(registro){
     registros=registros.filter(r=>r.id!==registro.id);
     await dbDelete("movimientos",registro.id);
     if(necesitaEliminacionRemota){
-        await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"eliminarMovimiento",fila:Number(registro.fila)||null,localId:registro.id}});
+        await dbPut("operaciones",{
+            id:generarIdLocal("op"),
+            payload:{
+                accion:"eliminarMovimiento",
+                fila:Number(registro.fila)||null,
+                localId:registro.id,
+                fecha:registro.fecha||fechaTexto,
+                hora:registro.hora||"",
+                cliente:registro.cliente||"",
+                elemento:registro.elemento||"",
+                cantidad:Number(registro.cantidad)||0,
+                estado:registro.estado||"",
+                notas:registro.notas||""
+            }
+        });
     }
     actualizarResumen();actualizarMovimientos();actualizarEstadoConexion();mostrarMensaje(navigator.onLine?"✓ Eliminado. Sincronizando...":"✓ Eliminado sin conexión","ok");
     if(navigator.onLine)sincronizarPendientes();
