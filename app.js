@@ -1676,10 +1676,16 @@ async function cargarDatosXCC(){
             else if(borradorLocal)resultado={ok:true,configuracion:JSON.parse(borradorLocal).map(x=>({cliente:x.cliente,estibasDia:x.estibasDia,ultimo:{inventarioActual:x.inventarioActual,objetivo:x.objetivo}}))};
         }
         if(!resultado||!resultado.ok)throw new Error("No hay información XCC disponible");
-        datosXCC=(resultado.configuracion||[]).map(i=>{
+        // XCC debe mostrar un solo registro por cliente. Si la fuente devuelve
+        // duplicados (incluso con IDs repetidos), conservamos el último registro.
+        const unicosXCC=new Map();
+        (resultado.configuracion||[]).forEach(i=>{
             const u=i.ultimo||{};
-            return{cliente:i.cliente,estibasDia:Number(i.estibasDia)||0,inventarioActual:Number(u.inventarioActual)||0,objetivo:Number(u.objetivo)||0,ultimoId:u.id||"",ultimaFecha:u.fecha||""};
+            const fila={cliente:i.cliente,estibasDia:Number(i.estibasDia)||0,inventarioActual:Number(u.inventarioActual)||0,objetivo:Number(u.objetivo)||0,ultimoId:u.id||"",ultimaFecha:u.fecha||""};
+            const clave=normalizarTexto(fila.cliente);
+            if(clave)unicosXCC.set(clave,fila);
         });
+        datosXCC=Array.from(unicosXCC.values());
         if(borradorLocal){
             try{
                 const borrador=JSON.parse(borradorLocal);
@@ -1702,7 +1708,9 @@ async function cargarDatosXCC(){
         if(cache){
             try{
                 const r=JSON.parse(cache);
-                datosXCC=(r.configuracion||[]).map(i=>{const u=i.ultimo||{};return{cliente:i.cliente,estibasDia:Number(i.estibasDia)||0,inventarioActual:Number(u.inventarioActual)||0,objetivo:Number(u.objetivo)||0,ultimoId:u.id||"",ultimaFecha:u.fecha||""};});
+                const unicosXCC=new Map();
+                (r.configuracion||[]).forEach(i=>{const u=i.ultimo||{};const fila={cliente:i.cliente,estibasDia:Number(i.estibasDia)||0,inventarioActual:Number(u.inventarioActual)||0,objetivo:Number(u.objetivo)||0,ultimoId:u.id||"",ultimaFecha:u.fecha||""};const clave=normalizarTexto(fila.cliente);if(clave)unicosXCC.set(clave,fila);});
+                datosXCC=Array.from(unicosXCC.values());
                 renderizarXCC();mensajeXCC("⚠ Sin conexión: mostrando el último inventario disponible","error");return;
             }catch(e){}
         }

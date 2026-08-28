@@ -1193,3 +1193,101 @@ button{
         padding:20px 8px;
     }
 }
+
+
+/* =====================================================
+   CORRECCIÓN DEFINITIVA MOBILE INVENTARIO DIARIO
+   Solo corrige el ancho/overflow del módulo principal.
+   No modifica XCC ni la lógica.
+===================================================== */
+@media (max-width: 600px){
+    html, body{
+        width:100%;
+        max-width:100%;
+        overflow-x:hidden !important;
+    }
+
+    .top-header,
+    .header-inner,
+    .modulos,
+    .dashboard,
+    #moduloInventario,
+    #moduloInventario > section,
+    #movimientosCard,
+    .card,
+    .form-card,
+    .summary-card{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        box-sizing:border-box;
+    }
+
+    .header-inner{
+        grid-template-columns:minmax(0,1fr) auto;
+        gap:10px;
+    }
+
+    .header-title,
+    .header-date,
+    .header-logo{
+        min-width:0;
+        max-width:100%;
+    }
+
+    .header-title strong,
+    .header-title div,
+    .header-date-main,
+    .header-date-label{
+        max-width:100%;
+        overflow:hidden;
+    }
+
+    .dashboard{
+        display:block;
+        padding:10px;
+        overflow-x:hidden;
+    }
+
+    #moduloInventario > section{
+        margin-left:0;
+        margin-right:0;
+    }
+
+    #moduloInventario .form-grid,
+    #moduloInventario .form-field,
+    #moduloInventario .elemento-wrapper,
+    #moduloInventario .elemento-input-row,
+    #moduloInventario .estado-buttons,
+    #moduloInventario .subsection-header,
+    #moduloInventario .secondary-stats{
+        min-width:0;
+        max-width:100%;
+    }
+
+    #moduloInventario .form-field input,
+    #moduloInventario .form-field select,
+    #moduloInventario .form-field textarea,
+    #moduloInventario .elemento-input-row input,
+    #moduloInventario .clear-element,
+    #moduloInventario .estado-btn,
+    #moduloInventario .primary-button,
+    #moduloInventario .report-button{
+        max-width:100%;
+        box-sizing:border-box;
+    }
+
+    #moduloInventario .table-container{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow:hidden !important;
+    }
+
+    #moduloInventario .inventory-table{
+        width:100% !important;
+        max-width:100% !important;
+        min-width:0 !important;
+        table-layout:fixed !important;
+    }
+}
