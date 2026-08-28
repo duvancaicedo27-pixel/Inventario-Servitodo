@@ -1744,6 +1744,7 @@ async function iniciarAplicacion(){
 // =====================================================
 let datosXCC=[];
 let reporteXCCData="";
+let xccTuvoFallo=false;
 function fechaActualXCC(){return new Date().toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});}
 function mensajeXCC(texto,tipo="ok"){const e=document.getElementById("mensajeXCC");if(!e)return;e.textContent=texto;e.style.color=tipo==="ok"?"#168548":"#c62828";clearTimeout(window.mx);window.mx=setTimeout(()=>e.textContent="",3500);}
 function cambiarModuloXCC(activo){const inv=document.getElementById("moduloInventario"),mod=document.getElementById("moduloXCC"),b1=document.getElementById("btnInventario"),b2=document.getElementById("btnXCC");if(!inv||!mod)return;if(activo){inv.style.display="none";mod.style.display="block";b1?.classList.remove("activo");b2?.classList.add("activo");cargarDatosXCC();}else{inv.style.display="contents";mod.style.display="none";b1?.classList.add("activo");b2?.classList.remove("activo");}}
@@ -1797,6 +1798,10 @@ async function cargarDatosXCC(){
             }catch(e){}
         }
         renderizarXCC();
+        if(xccTuvoFallo){
+            xccTuvoFallo=false;
+            mensajeXCC("✓ XCC actualizado correctamente","ok");
+        }
     }catch(error){
         console.error(error);
         const borrador=localStorage.getItem("servitodo_xcc_ultimaEdicion");
@@ -1804,17 +1809,18 @@ async function cargarDatosXCC(){
         if(borrador){
             try{
                 const b=JSON.parse(borrador);
-                if(Array.isArray(b)&&b.length){datosXCC=b;renderizarXCC();mensajeXCC(navigator.onLine?"⚠ No se pudo actualizar XCC. Mostrando la última edición guardada.":"⚠ Sin conexión: mostrando la última edición local","error");return;}
+                if(Array.isArray(b)&&b.length){datosXCC=b;renderizarXCC();if(navigator.onLine)xccTuvoFallo=true;mensajeXCC(navigator.onLine?"⚠ No se pudo actualizar XCC. Mostrando la última edición guardada.":"⚠ Sin conexión: mostrando la última edición local","error");return;}
             }catch(e){}
         }
         if(cache){
             try{
                 const r=JSON.parse(cache);
                 datosXCC=(r.configuracion||[]).map(i=>{const u=i.ultimo||{};return{cliente:i.cliente,estibasDia:Number(i.estibasDia)||0,inventarioActual:Number(u.inventarioActual)||0,objetivo:Number(u.objetivo)||0,ultimoId:u.id||"",ultimaFecha:u.fecha||""};});
-                renderizarXCC();mensajeXCC(navigator.onLine?"⚠ No se pudo actualizar XCC. Mostrando el último inventario guardado.":"⚠ Sin conexión: mostrando el último inventario disponible","error");return;
+                renderizarXCC();if(navigator.onLine)xccTuvoFallo=true;mensajeXCC(navigator.onLine?"⚠ No se pudo actualizar XCC. Mostrando el último inventario guardado.":"⚠ Sin conexión: mostrando el último inventario disponible","error");return;
             }catch(e){}
         }
         tb.innerHTML=`<tr><td colspan="6" class="empty">No se pudo cargar el inventario XCC.</td></tr>`;
+        if(navigator.onLine)xccTuvoFallo=true;
         mensajeXCC("❌ "+error.message,"error");
     }
 }
