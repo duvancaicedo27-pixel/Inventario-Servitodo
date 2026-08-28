@@ -990,3 +990,86 @@ button{
     .xcc-table th,.xcc-table td{font-size:9px;padding:8px 6px;}
     .xcc-input{min-width:74px;height:36px;font-size:11px;}
 }
+
+/* =====================================================
+   AJUSTE EXCLUSIVO XCC - MÓVIL SIN DESPLAZAMIENTO HORIZONTAL
+   ===================================================== */
+@media (max-width: 600px){
+    #moduloXCC{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow:hidden;
+    }
+
+    #moduloXCC .xcc-card{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        box-sizing:border-box;
+        overflow:hidden;
+    }
+
+    #moduloXCC .xcc-table-wrap{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow:hidden;
+    }
+
+    #moduloXCC .xcc-table{
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        table-layout:fixed;
+    }
+
+    #moduloXCC .xcc-table th,
+    #moduloXCC .xcc-table td{
+        min-width:0;
+        width:auto;
+        overflow:hidden;
+        word-break:break-word;
+        overflow-wrap:anywhere;
+    }
+
+    #moduloXCC .xcc-table th{
+        font-size:9px;
+        line-height:1.15;
+        padding:8px 4px;
+    }
+
+    #moduloXCC .xcc-table td{
+        font-size:10px;
+        line-height:1.2;
+        padding:9px 4px;
+    }
+
+    #moduloXCC .xcc-table td:first-child{
+        width:24%;
+    }
+
+    #moduloXCC .xcc-input{
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        box-sizing:border-box;
+        height:36px;
+        padding:6px 2px;
+        font-size:11px;
+    }
+}
+@media (max-width: 600px){
+    #moduloXCC .table-container{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow:hidden;
+    }
+    #moduloXCC .xcc-table th:nth-child(1),#moduloXCC .xcc-table td:nth-child(1){width:24%;}
+    #moduloXCC .xcc-table th:nth-child(2),#moduloXCC .xcc-table td:nth-child(2){width:13%;}
+    #moduloXCC .xcc-table th:nth-child(3),#moduloXCC .xcc-table td:nth-child(3){width:18%;}
+    #moduloXCC .xcc-table th:nth-child(4),#moduloXCC .xcc-table td:nth-child(4){width:14%;}
+    #moduloXCC .xcc-table th:nth-child(5),#moduloXCC .xcc-table td:nth-child(5){width:17%;}
+    #moduloXCC .xcc-table th:nth-child(6),#moduloXCC .xcc-table td:nth-child(6){width:14%;}
+}
