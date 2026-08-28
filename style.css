@@ -2033,3 +2033,22 @@ button, input, select, textarea {
         bottom: 54px !important;
     }
 }
+
+/* ===== AJUSTE MOVIMIENTOS MOVIL: mostrar EDITAR y ELIMINAR ===== */
+@media(max-width:800px){
+    #listaMovimientos .movimiento-item{
+        grid-template-columns:60px minmax(0,1fr) 82px 82px !important;
+        grid-template-areas:"hora cliente cantidad estado" "hora elemento editar eliminar" !important;
+        gap:8px !important;
+        overflow:visible !important;
+        min-width:0 !important;
+    }
+    #listaMovimientos .movimiento-hora{grid-area:hora !important;align-self:start;padding-top:4px;}
+    #listaMovimientos .movimiento-cliente{grid-area:cliente !important;grid-column:auto !important;grid-row:auto !important;min-width:0 !important;}
+    #listaMovimientos .movimiento-elemento{grid-area:elemento !important;grid-column:auto !important;grid-row:auto !important;min-width:0 !important;}
+    #listaMovimientos .movimiento-cantidad{grid-area:cantidad !important;grid-column:auto !important;grid-row:auto !important;white-space:nowrap;}
+    #listaMovimientos .movimiento-estado{grid-area:estado !important;grid-column:auto !important;grid-row:auto !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    #listaMovimientos .btn-editar-movimiento{grid-area:editar !important;grid-column:auto !important;grid-row:auto !important;width:100% !important;min-width:0 !important;}
+    #listaMovimientos .btn-eliminar-movimiento{grid-area:eliminar !important;grid-column:auto !important;grid-row:auto !important;width:100% !important;min-width:0 !important;display:block !important;visibility:visible !important;}
+    #listaMovimientos .movimiento-dato strong{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;}
+}
