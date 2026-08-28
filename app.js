@@ -260,118 +260,32 @@ async function actualizarEstadoConexion(){
         renderizarEstadoConexion();
     }catch(e){console.warn("No se pudo actualizar pendientes",e);}
 }
-const SYNC_BATCH_SIZE=20;
-const SYNC_MAX_ATTEMPTS=3;
-const SYNC_TIMEOUT_MS=15000;
-
-async function fetchJSONConReintento(url,options={},intentos=SYNC_MAX_ATTEMPTS){
-    let ultimoError=null;
-    for(let intento=1;intento<=intentos;intento++){
-        const controller=new AbortController();
-        const temporizador=setTimeout(()=>controller.abort(),SYNC_TIMEOUT_MS);
-        try{
-            const respuesta=await fetch(url,{...options,signal:controller.signal,cache:options.cache||"no-store"});
-            clearTimeout(temporizador);
-            if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
-            const resultado=await respuesta.json();
-            if(!resultado.ok)throw new Error(resultado.error||"Error de servidor");
-            return resultado;
-        }catch(error){
-            clearTimeout(temporizador);
-            ultimoError=error;
-            if(intento<intentos)await new Promise(r=>setTimeout(r,700*intento));
-        }
-    }
-    throw ultimoError||new Error("No se pudo conectar");
-}
-
-async function marcarOperacionInventarioSincronizada(op,resultado){
-    if(op.payload.accion==="eliminarMovimiento"){
-        const idx=registros.findIndex(r=>r.id===op.payload.localId);
-        if(idx>=0)registros.splice(idx,1);
-        await dbDelete("operaciones",op.id);
-        return;
-    }
-    const item=registros.find(r=>r.id===op.payload.localId);
-    if(item){
-        item.sincronizado=true;
-        if(resultado&&resultado.fila)item.fila=resultado.fila;
-        if(resultado&&resultado.idLocal)item.idLocal=resultado.idLocal;
-        await dbPut("movimientos",item);
-    }
-    await dbDelete("operaciones",op.id);
-}
-
-async function sincronizarAltasInventarioLote(ops){
-    if(!ops.length)return true;
-    const payloads=ops.map(op=>op.payload);
-    try{
-        const resultado=await fetchJSONConReintento(API_URL,{
-            method:"POST",
-            headers:{"Content-Type":"text/plain;charset=utf-8"},
-            body:JSON.stringify({accion:"guardarInventarioLote",registros:payloads})
-        });
-        const resultados=Array.isArray(resultado.resultados)?resultado.resultados:[];
-        const porId=new Map(resultados.map(x=>[x.localId,x]));
-        for(const op of ops){
-            const r=porId.get(op.payload.localId);
-            if(!r)throw new Error("El servidor no confirmó "+op.payload.localId);
-            await marcarOperacionInventarioSincronizada(op,r);
-        }
-        return true;
-    }catch(error){
-        console.warn("Lote de inventario no disponible, se usará sincronización individual:",error);
-        return false;
-    }
-}
-
-async function sincronizarOperacionInventarioIndividual(op){
-    const resultado=await fetchJSONConReintento(API_URL,{
-        method:"POST",
-        headers:{"Content-Type":"text/plain;charset=utf-8"},
-        body:JSON.stringify(op.payload)
-    });
-    await marcarOperacionInventarioSincronizada(op,resultado);
-}
-
 async function sincronizarPendientes(){
     if(!navigator.onLine||!dbOffline||sincronizando)return;
     sincronizando=true;
     try{
-        let ops=await dbAll("operaciones");
+        const ops=await dbAll("operaciones");
         detallePendientesInventario=ops;
         pendientesInventario=ops.length;
         renderizarEstadoConexion();
-
-        const altas=ops.filter(op=>op&&op.payload&&!op.payload.accion);
-        for(let i=0;i<altas.length;i+=SYNC_BATCH_SIZE){
-            const lote=altas.slice(i,i+SYNC_BATCH_SIZE);
-            if(!await sincronizarAltasInventarioLote(lote)){
-                for(const op of lote){
-                    try{
-                        await sincronizarOperacionInventarioIndividual(op);
-                    }catch(error){
-                        console.warn("Pendiente no sincronizado:",error);
-                        break;
-                    }
-                }
-            }
-        }
-
-        ops=await dbAll("operaciones");
-        const resto=ops.filter(op=>op&&op.payload&&op.payload.accion);
-        for(const op of resto){
+        for(const op of ops){
             try{
-                await sincronizarOperacionInventarioIndividual(op);
-            }catch(error){
-                console.warn("Pendiente no sincronizado:",error);
-                break;
-            }
+                const respuesta=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload),keepalive:true});
+                const resultado=await respuesta.json();
+                if(!resultado.ok)throw new Error(resultado.error||"Error de sincronización");
+                if(op.payload.accion==="eliminarMovimiento"){
+                    const idx=registros.findIndex(r=>r.id===op.payload.localId);
+                    if(idx>=0)registros.splice(idx,1);
+                }else{
+                    const item=registros.find(r=>r.id===op.payload.localId);
+                    if(item){item.sincronizado=true;item.fila=resultado.fila||item.fila;await dbPut("movimientos",item);}
+                }
+                await dbDelete("operaciones",op.id);
+                detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
+                pendientesInventario=detallePendientesInventario.length;
+                renderizarEstadoConexion();
+            }catch(e){console.warn("Pendiente no sincronizado",e);break;}
         }
-
-        const pendientesRestantes=await dbAll("operaciones");
-        detallePendientesInventario=pendientesRestantes;
-        pendientesInventario=pendientesRestantes.length;
     }finally{
         sincronizando=false;
         renderizarEstadoConexion();
@@ -390,11 +304,11 @@ function programarReintentoSincronizacion(){
         sincronizarXCCPendientes();
     },3000);
 }
-window.addEventListener("online",async()=>{
+window.addEventListener("online",()=>{
     renderizarEstadoConexion();
-    try{await sincronizarPendientes();}catch(error){console.warn(error);}
-    try{await sincronizarXCCPendientes();}catch(error){console.warn(error);}
-    await actualizarEstadoConexion();
+    sincronizarPendientes();
+    sincronizarXCCPendientes();
+    actualizarEstadoConexion();
 });
 window.addEventListener("offline",()=>{clearInterval(intervaloSincronizacion);intervaloSincronizacion=null;renderizarEstadoConexion();});
 
@@ -628,8 +542,9 @@ function actualizarResumen(){
 function crearSeccionMovimientos(){
     if(document.getElementById("movimientosCard"))return;
 
-    const main=document.querySelector("main");
-    if(!main)return;
+    // Los movimientos pertenecen exclusivamente a Inventario Diario.
+    const moduloInventario=document.getElementById("moduloInventario");
+    if(!moduloInventario)return;
 
     const card=document.createElement("section");
     card.id="movimientosCard";
@@ -646,14 +561,11 @@ function crearSeccionMovimientos(){
         <div id="listaMovimientos"></div>
     `;
 
-    const cards=main.querySelectorAll(".card");
-
-    if(cards.length>=2)cards[cards.length-1].after(card);
-    else main.appendChild(card);
+    // Siempre queda dentro del módulo Inventario Diario, después de su resumen.
+    moduloInventario.appendChild(card);
 
     agregarEstilosMovimientos();
 }
-
 function agregarEstilosMovimientos(){
     if(document.getElementById("estilosMovimientos"))return;
 
@@ -769,14 +681,6 @@ if(reporteBtn){
 }
 
 async function generarReporte(){
-    if(navigator.onLine&&dbOffline){
-        try{
-            await sincronizarPendientes();
-            await sincronizarXCCPendientes();
-        }catch(error){
-            console.warn("No se pudo completar la sincronización antes del reporte:",error);
-        }
-    }
     if(registros.length===0){
         mostrarMensaje("No hay registros para generar el reporte.","error");
         return;
@@ -1744,7 +1648,6 @@ async function iniciarAplicacion(){
 // =====================================================
 let datosXCC=[];
 let reporteXCCData="";
-let xccTuvoFallo=false;
 function fechaActualXCC(){return new Date().toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});}
 function mensajeXCC(texto,tipo="ok"){const e=document.getElementById("mensajeXCC");if(!e)return;e.textContent=texto;e.style.color=tipo==="ok"?"#168548":"#c62828";clearTimeout(window.mx);window.mx=setTimeout(()=>e.textContent="",3500);}
 function cambiarModuloXCC(activo){const inv=document.getElementById("moduloInventario"),mod=document.getElementById("moduloXCC"),b1=document.getElementById("btnInventario"),b2=document.getElementById("btnXCC");if(!inv||!mod)return;if(activo){inv.style.display="none";mod.style.display="block";b1?.classList.remove("activo");b2?.classList.add("activo");cargarDatosXCC();}else{inv.style.display="contents";mod.style.display="none";b1?.classList.add("activo");b2?.classList.remove("activo");}}
@@ -1759,26 +1662,10 @@ async function cargarDatosXCC(){
     try{
         const borradorLocal=localStorage.getItem("servitodo_xcc_ultimaEdicion");
         if(navigator.onLine){
-            let ultimoError=null;
-            for(let intento=1; intento<=3; intento++){
-                try{
-                    const controller=new AbortController();
-                    const temporizador=setTimeout(()=>controller.abort(),10000);
-                    const r=await fetch(API_URL+"?accion=obtenerXCC&_="+Date.now(),{cache:"no-store",signal:controller.signal});
-                    clearTimeout(temporizador);
-                    if(!r.ok)throw new Error("HTTP "+r.status);
-                    const dato=await r.json();
-                    if(!dato.ok)throw new Error(dato.error||"No se pudo obtener XCC");
-                    resultado=dato;
-                    localStorage.setItem("servitodo_xcc_cache",JSON.stringify(resultado));
-                    ultimoError=null;
-                    break;
-                }catch(e){
-                    ultimoError=e;
-                    if(intento<3)await new Promise(resolve=>setTimeout(resolve,500*intento));
-                }
-            }
-            if(!resultado)throw ultimoError||new Error("No se pudo actualizar XCC");
+            const r=await fetch(API_URL+"?accion=obtenerXCC",{cache:"no-store"});
+            resultado=await r.json();
+            if(!resultado.ok)throw new Error(resultado.error||"No se pudo obtener XCC");
+            localStorage.setItem("servitodo_xcc_cache",JSON.stringify(resultado));
         }else{
             const cache=localStorage.getItem("servitodo_xcc_cache");
             if(cache)resultado=JSON.parse(cache);
@@ -1798,10 +1685,6 @@ async function cargarDatosXCC(){
             }catch(e){}
         }
         renderizarXCC();
-        if(xccTuvoFallo){
-            xccTuvoFallo=false;
-            mensajeXCC("✓ XCC actualizado correctamente","ok");
-        }
     }catch(error){
         console.error(error);
         const borrador=localStorage.getItem("servitodo_xcc_ultimaEdicion");
@@ -1809,18 +1692,17 @@ async function cargarDatosXCC(){
         if(borrador){
             try{
                 const b=JSON.parse(borrador);
-                if(Array.isArray(b)&&b.length){datosXCC=b;renderizarXCC();if(navigator.onLine)xccTuvoFallo=true;mensajeXCC(navigator.onLine?"⚠ No se pudo actualizar XCC. Mostrando la última edición guardada.":"⚠ Sin conexión: mostrando la última edición local","error");return;}
+                if(Array.isArray(b)&&b.length){datosXCC=b;renderizarXCC();mensajeXCC("⚠ Sin conexión: mostrando la última edición local","error");return;}
             }catch(e){}
         }
         if(cache){
             try{
                 const r=JSON.parse(cache);
                 datosXCC=(r.configuracion||[]).map(i=>{const u=i.ultimo||{};return{cliente:i.cliente,estibasDia:Number(i.estibasDia)||0,inventarioActual:Number(u.inventarioActual)||0,objetivo:Number(u.objetivo)||0,ultimoId:u.id||"",ultimaFecha:u.fecha||""};});
-                renderizarXCC();if(navigator.onLine)xccTuvoFallo=true;mensajeXCC(navigator.onLine?"⚠ No se pudo actualizar XCC. Mostrando el último inventario guardado.":"⚠ Sin conexión: mostrando el último inventario disponible","error");return;
+                renderizarXCC();mensajeXCC("⚠ Sin conexión: mostrando el último inventario disponible","error");return;
             }catch(e){}
         }
         tb.innerHTML=`<tr><td colspan="6" class="empty">No se pudo cargar el inventario XCC.</td></tr>`;
-        if(navigator.onLine)xccTuvoFallo=true;
         mensajeXCC("❌ "+error.message,"error");
     }
 }
@@ -1875,279 +1757,7 @@ async function sincronizarXCCPendientes(){
         programarReintentoSincronizacion();
     }
 }
-function generarReporteXCC(){
-    const momento=new Date();
-    const fechaReporte=momento.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
-    const horaReporte=momento.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-
-    if(!logoServitodo.complete){
-        logoServitodo.onload=()=>{};
-    }
-
-    const filas=datosXCC.length;
-    const ancho=1200;
-    const headerH=112;
-    const margen=14;
-    const tablaY=146;
-    const encabezadoH=76;
-    const filaH=58;
-    const separacionCliente=14;
-
-    const altoTabla=encabezadoH + (filas* (filaH+separacionCliente));
-    const footerH=116;
-    const footerGap=10;
-    const alto=tablaY + Math.max(altoTabla,encabezadoH+filaH+separacionCliente) + footerGap + footerH + 14;
-
-    const canvas=document.createElement("canvas");
-    canvas.width=ancho;
-    canvas.height=alto;
-    const ctx=canvas.getContext("2d");
-
-    const azul="#102b4e";
-    const azulTexto="#11253f";
-    const verde="#168b3b";
-    const azulProceso="#1957ae";
-    const morado="#7140a8";
-    const borde="#c8d0d8";
-    const grisClaro="#f5f6f8";
-    const blanco="#ffffff";
-    const grisTexto="#6f7d8c";
-
-    ctx.fillStyle=blanco;
-    ctx.fillRect(0,0,ancho,alto);
-
-    // =================================================
-    // ENCABEZADO - MISMO ESTILO DEL INVENTARIO DIARIO
-    // =================================================
-    const headerX=margen;
-    const headerY=14;
-    const headerW=ancho-(margen*2);
-
-    ctx.fillStyle=azul;
-    ctx.fillRect(headerX,headerY,headerW,headerH);
-
-    const bloqueFecha=330;
-    const bloqueLogo=330;
-
-    ctx.strokeStyle="rgba(255,255,255,.5)";
-    ctx.lineWidth=2;
-    ctx.beginPath();
-    ctx.moveTo(headerX+bloqueFecha,headerY);
-    ctx.lineTo(headerX+bloqueFecha,headerY+headerH);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(headerX+headerW-bloqueLogo,headerY);
-    ctx.lineTo(headerX+headerW-bloqueLogo,headerY+headerH);
-    ctx.stroke();
-
-    // Calendario
-    const calX=50, calY=43;
-    ctx.strokeStyle="#c7d0db";
-    ctx.lineWidth=4;
-    ctx.strokeRect(calX,calY,34,31);
-    ctx.beginPath();
-    ctx.moveTo(calX+7,calY-7); ctx.lineTo(calX+7,calY+4);
-    ctx.moveTo(calX+27,calY-7); ctx.lineTo(calX+27,calY+4);
-    ctx.stroke();
-    ctx.lineWidth=2;
-    ctx.beginPath();
-    for(let i=0;i<3;i++){
-        ctx.moveTo(calX+8,calY+11+i*7);
-        ctx.lineTo(calX+29,calY+11+i*7);
-    }
-    ctx.stroke();
-
-    ctx.fillStyle=blanco;
-    ctx.textAlign="left";
-    ctx.font="bold 34px Arial";
-    ctx.fillText(fechaReporte.replace(/\//g,"-"),105,65);
-    ctx.font="bold 18px Arial";
-    ctx.fillText("Fecha del inventario",106,91);
-
-    const centroX=headerX+bloqueFecha+26;
-    ctx.fillStyle=blanco;
-    ctx.font="bold 22px Arial";
-    ctx.fillText("INVENTARIO DE ESTIBAS",centroX,48);
-    ctx.font="bold 58px Arial";
-    ctx.fillText("SERVITODO",centroX,99);
-
-    if(logoServitodo.complete && logoServitodo.naturalWidth>0){
-        const areaX=headerX+headerW-bloqueLogo;
-        const areaY=headerY;
-        const areaW=bloqueLogo, areaH=headerH;
-        const maxW=205,maxH=96;
-        let logoW=logoServitodo.naturalWidth, logoH=logoServitodo.naturalHeight;
-        const escala=Math.min(maxW/logoW,maxH/logoH);
-        logoW*=escala; logoH*=escala;
-        const logoX=areaX+(areaW-logoW)/2;
-        const logoY=areaY+(areaH-logoH)/2;
-        ctx.drawImage(logoServitodo,logoX,logoY,logoW,logoH);
-    }
-
-    // =================================================
-    // TABLA - MISMA ESTRUCTURA VISUAL DEL REPORTE DIARIO
-    // =================================================
-    const tablaX=14;
-    const tablaW=ancho-(tablaX*2);
-    const wCliente=330;
-    const wEstibas=180;
-    const wInventario=195;
-    const wDias=170;
-    const wObjetivo=160;
-    const wFaltante=151;
-    const xCliente=tablaX;
-    const xEstibas=xCliente+wCliente;
-    const xInventario=xEstibas+wEstibas;
-    const xDias=xInventario+wInventario;
-    const xObjetivo=xDias+wDias;
-    const xFaltante=xObjetivo+wObjetivo;
-    const fila1=38;
-    const fila2=38;
-
-    ctx.fillStyle=grisClaro;
-    ctx.fillRect(xCliente,tablaY,wCliente,fila1+fila2);
-    ctx.fillRect(xEstibas,tablaY,wEstibas,fila1+fila2);
-    ctx.fillRect(xInventario,tablaY,wInventario,fila1+fila2);
-    ctx.fillRect(xDias,tablaY,wDias,fila1+fila2);
-    ctx.fillRect(xObjetivo,tablaY,wObjetivo,fila1+fila2);
-    ctx.fillRect(xFaltante,tablaY,wFaltante,fila1+fila2);
-
-    ctx.strokeStyle=borde;
-    ctx.lineWidth=1;
-    [
-        [xCliente,wCliente],
-        [xEstibas,wEstibas],
-        [xInventario,wInventario],
-        [xDias,wDias],
-        [xObjetivo,wObjetivo],
-        [xFaltante,wFaltante]
-    ].forEach(([x,w])=>ctx.strokeRect(x,tablaY,w,fila1+fila2));
-
-    const encabezados=[
-        ["CLIENTE",xCliente,wCliente],
-        ["ESTIBAS / DÍA",xEstibas,wEstibas],
-        ["INVENTARIO",xInventario,wInventario],
-        ["DÍAS CUBIERTOS",xDias,wDias],
-        ["OBJETIVO",xObjetivo,wObjetivo],
-        ["FALTANTE",xFaltante,wFaltante]
-    ];
-
-    ctx.fillStyle=azulTexto;
-    ctx.font="bold 20px Arial";
-    ctx.textAlign="center";
-    encabezados.forEach(([texto,x,w])=>{
-        ctx.fillText(texto,x+w/2,tablaY+47);
-    });
-
-    let y=tablaY+fila1+fila2;
-
-    datosXCC.forEach((f,indice)=>{
-        const dias=f.estibasDia>0?f.inventarioActual/f.estibasDia:0;
-        const faltante=f.objetivo-f.inventarioActual;
-        ctx.fillStyle=indice%2===0?blanco:"#fafbfc";
-        ctx.fillRect(tablaX,y,tablaW,filaH);
-
-        ctx.strokeStyle=borde;
-        ctx.beginPath();
-        ctx.moveTo(tablaX,y);
-        ctx.lineTo(tablaX+tablaW,y);
-        ctx.stroke();
-
-        ctx.fillStyle=azulTexto;
-        ctx.font="bold 18px Arial";
-        ctx.textAlign="left";
-        textoAjustado(ctx,f.cliente,xCliente+16,y+36,wCliente-32);
-
-        ctx.textAlign="center";
-        ctx.fillStyle=azulTexto;
-        ctx.font="bold 18px Arial";
-        ctx.fillText(formatear(f.estibasDia),xEstibas+wEstibas/2,y+36);
-        ctx.fillText(formatear(f.inventarioActual),xInventario+wInventario/2,y+36);
-        ctx.fillText(dias.toFixed(1),xDias+wDias/2,y+36);
-        ctx.fillText(formatear(f.objetivo),xObjetivo+wObjetivo/2,y+36);
-
-        ctx.fillStyle=faltante>0?"#c62828":faltante<0?"#168b3b":grisTexto;
-        ctx.fillText(formatear(faltante),xFaltante+wFaltante/2,y+36);
-
-        y+=filaH+separacionCliente;
-    });
-
-    ctx.strokeStyle=borde;
-    ctx.lineWidth=2;
-    ctx.strokeRect(tablaX,tablaY,tablaW,Math.max(y-tablaY-separacionCliente,encabezadoH));
-
-    [xEstibas,xInventario,xDias,xObjetivo,xFaltante].forEach(pos=>{
-        ctx.strokeStyle=borde;
-        ctx.lineWidth=1;
-        ctx.beginPath();
-        ctx.moveTo(pos,tablaY);
-        ctx.lineTo(pos,y-separacionCliente);
-        ctx.stroke();
-    });
-
-    // =================================================
-    // PIE - MISMO ESTILO DEL REPORTE DIARIO
-    // =================================================
-    const footerY=y+footerGap;
-    const f1=tablaX;
-    const f2=tablaX+tablaW/3;
-    const f3=tablaX+(tablaW/3)*2;
-
-    ctx.fillStyle=blanco;
-    ctx.fillRect(f1,footerY,tablaW,footerH);
-    ctx.strokeStyle=borde;
-    ctx.lineWidth=1;
-    ctx.strokeRect(f1,footerY,tablaW,footerH);
-    ctx.beginPath();
-    ctx.moveTo(f2,footerY); ctx.lineTo(f2,footerY+footerH);
-    ctx.moveTo(f3,footerY); ctx.lineTo(f3,footerY+footerH);
-    ctx.stroke();
-
-    // Generado el
-    ctx.strokeStyle="#738292";
-    ctx.lineWidth=3;
-    ctx.beginPath();
-    ctx.arc(f1+40,footerY+44,18,0,Math.PI*2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(f1+40,footerY+44); ctx.lineTo(f1+40,footerY+31);
-    ctx.moveTo(f1+40,footerY+44); ctx.lineTo(f1+49,footerY+49);
-    ctx.stroke();
-    ctx.fillStyle=grisTexto; ctx.font="15px Arial"; ctx.textAlign="left";
-    ctx.fillText("Generado el:",f1+73,footerY+32);
-    ctx.fillStyle=azulTexto; ctx.font="bold 18px Arial";
-    ctx.fillText(fechaReporte+" "+horaReporte,f1+73,footerY+62);
-
-    // Elaborado por
-    const personaX=f2+42;
-    ctx.strokeStyle="#738292"; ctx.lineWidth=3;
-    ctx.beginPath(); ctx.arc(personaX,footerY+34,8,0,Math.PI*2); ctx.stroke();
-    ctx.beginPath(); ctx.arc(personaX,footerY+68,17,Math.PI,0); ctx.stroke();
-    ctx.fillStyle=grisTexto; ctx.font="15px Arial";
-    ctx.fillText("Elaborado por:",f2+73,footerY+32);
-    ctx.fillStyle=azulTexto; ctx.font="bold 18px Arial";
-    ctx.fillText("Duvan C",f2+73,footerY+62);
-
-    // Documento
-    const docX=f3+40;
-    ctx.strokeStyle="#738292"; ctx.lineWidth=3;
-    ctx.strokeRect(docX-13,footerY+24,25,34);
-    ctx.beginPath();
-    ctx.moveTo(docX-6,footerY+34); ctx.lineTo(docX+6,footerY+34);
-    ctx.moveTo(docX-6,footerY+41); ctx.lineTo(docX+6,footerY+41);
-    ctx.moveTo(docX-6,footerY+48); ctx.lineTo(docX+6,footerY+48);
-    ctx.stroke();
-    ctx.fillStyle=grisTexto; ctx.font="15px Arial";
-    ctx.fillText("Inventario de estibas XCC",f3+73,footerY+32);
-    ctx.fillStyle=azulTexto; ctx.font="bold 18px Arial";
-    ctx.fillText("Página 1 de 1",f3+73,footerY+62);
-
-    reporteXCCData=canvas.toDataURL("image/png");
-    const img=document.getElementById("imagenReporteXCC");
-    if(img)img.src=reporteXCCData;
-    document.getElementById("modalReporteXCC")?.classList.add("visible");
-}
+function generarReporteXCC(){const fecha=new Date(),ft=fecha.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"}),ht=fecha.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}),canvas=document.createElement("canvas"),w=1400,h=220+datosXCC.length*60;canvas.width=w;canvas.height=h;const c=canvas.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,w,h);c.fillStyle="#102b4e";c.fillRect(0,0,w,120);c.fillStyle="#fff";c.font="bold 34px Arial";c.fillText("INVENTARIO DIARIO ESTIBAS XCC",42,55);c.font="bold 20px Arial";c.fillText(ft+"  |  "+ht,42,90);c.fillStyle="#102b4e";c.font="bold 17px Arial";["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"].forEach((x,i)=>c.fillText(x,[40,330,500,730,930,1100][i],160));c.font="16px Arial";datosXCC.forEach((f,i)=>{const y=195+i*60,d=f.estibasDia>0?f.inventarioActual/f.estibasDia:0,x=f.objetivo-f.inventarioActual;[f.cliente,formatear(f.estibasDia),formatear(f.inventarioActual),d.toFixed(1),formatear(f.objetivo),formatear(x)].forEach((v,j)=>c.fillText(String(v),[40,330,500,730,930,1100][j],y));});reporteXCCData=canvas.toDataURL("image/png");const img=document.getElementById("imagenReporteXCC");if(img)img.src=reporteXCCData;document.getElementById("modalReporteXCC")?.classList.add("visible");}
 function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();}
 prepararEventosXCC();
 iniciarAplicacion();
