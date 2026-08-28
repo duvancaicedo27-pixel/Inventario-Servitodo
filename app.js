@@ -1665,6 +1665,22 @@ if(modalReporte){
     });
 }
 
+function mostrarConfirmacionDescarga(texto){
+    const anterior=document.getElementById("confirmacionDescarga");
+    if(anterior)anterior.remove();
+
+    const aviso=document.createElement("div");
+    aviso.id="confirmacionDescarga";
+    aviso.textContent=texto;
+    aviso.style.cssText=`position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2000;background:#168548;color:#fff;padding:10px 16px;border-radius:10px;box-shadow:0 8px 22px rgba(0,0,0,.18);font:800 12px Inter,Segoe UI,Arial,sans-serif;pointer-events:none;opacity:0;transition:opacity .18s ease;max-width:calc(100vw - 28px);text-align:center;`;
+    document.body.appendChild(aviso);
+    requestAnimationFrame(()=>aviso.style.opacity="1");
+    setTimeout(()=>{
+        aviso.style.opacity="0";
+        setTimeout(()=>aviso.remove(),200);
+    },2500);
+}
+
 const descargarReporte=document.getElementById("descargarReporte");
 
 if(descargarReporte){
@@ -1683,6 +1699,7 @@ if(descargarReporte){
             ".png";
 
         enlace.click();
+        mostrarConfirmacionDescarga("✅ Reporte descargado correctamente");
     });
 }
 
@@ -2111,7 +2128,7 @@ function generarReporteXCC(){
     document.getElementById("modalReporteXCC")?.classList.add("visible");
 }
 
-function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();}
+function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();mostrarConfirmacionDescarga("✅ Reporte XCC descargado correctamente");}
 prepararEventosXCC();
 iniciarAplicacion();
 
