@@ -1291,3 +1291,7 @@ button{
         table-layout:fixed !important;
     }
 }
+
+/* Restauración del botón Eliminar en Movimientos del día */
+.btn-eliminar-movimiento{display:inline-flex !important;align-items:center;justify-content:center;visibility:visible !important;opacity:1 !important;min-width:80px;}
+@media(max-width:800px){.btn-eliminar-movimiento{display:inline-flex !important;grid-column:4;min-width:100px;}}
