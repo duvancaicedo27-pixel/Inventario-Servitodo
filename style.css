@@ -959,7 +959,10 @@ button{
 .xcc-actions .primary-button,.xcc-actions .report-button{width:100%;}
 }
 
-/* V18 - solo sombra sutil y mas visible; boton original intacto */
+/* V19 - base estable + solo sombra mas visible y correccion del modulo inicial */
+#moduloInventario{display:contents;}
+#moduloXCC{display:none;}
+
 .estado-btn.active{
     opacity:1;
     transform:translateY(-1px);
@@ -968,9 +971,9 @@ button{
 }
 
 .estado-btn.mono.active{
-    box-shadow:0 7px 18px rgba(22,133,72,.42);
+    box-shadow:0 7px 22px rgba(22,133,72,.55);
 }
 
 .estado-btn.proceso.active{
-    box-shadow:0 7px 18px rgba(20,93,183,.42);
+    box-shadow:0 7px 22px rgba(20,93,183,.55);
 }
