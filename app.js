@@ -260,32 +260,125 @@ async function actualizarEstadoConexion(){
         renderizarEstadoConexion();
     }catch(e){console.warn("No se pudo actualizar pendientes",e);}
 }
+const SYNC_BATCH_SIZE=20;
+const SYNC_MAX_ATTEMPTS=3;
+const SYNC_TIMEOUT_MS=15000;
+
+async function fetchJSONConReintento(url,options={},intentos=SYNC_MAX_ATTEMPTS){
+    let ultimoError=null;
+    for(let intento=1;intento<=intentos;intento++){
+        const controller=new AbortController();
+        const temporizador=setTimeout(()=>controller.abort(),SYNC_TIMEOUT_MS);
+        try{
+            const respuesta=await fetch(url,{...options,signal:controller.signal,cache:options.cache||"no-store"});
+            clearTimeout(temporizador);
+            if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
+            const resultado=await respuesta.json();
+            if(!resultado.ok)throw new Error(resultado.error||"Error de servidor");
+            return resultado;
+        }catch(error){
+            clearTimeout(temporizador);
+            ultimoError=error;
+            if(intento<intentos)await new Promise(r=>setTimeout(r,700*intento));
+        }
+    }
+    throw ultimoError||new Error("No se pudo conectar");
+}
+
+async function marcarOperacionInventarioSincronizada(op,resultado){
+    if(op.payload.accion==="eliminarMovimiento"){
+        const idx=registros.findIndex(r=>r.id===op.payload.localId);
+        if(idx>=0)registros.splice(idx,1);
+        await dbDelete("operaciones",op.id);
+        return;
+    }
+    const item=registros.find(r=>r.id===op.payload.localId);
+    if(item){
+        item.sincronizado=true;
+        if(resultado&&resultado.fila)item.fila=resultado.fila;
+        if(resultado&&resultado.idLocal)item.idLocal=resultado.idLocal;
+        await dbPut("movimientos",item);
+    }
+    await dbDelete("operaciones",op.id);
+}
+
+async function sincronizarAltasInventarioLote(ops){
+    if(!ops.length)return true;
+    const payloads=ops.map(op=>op.payload);
+    try{
+        const resultado=await fetchJSONConReintento(API_URL,{
+            method:"POST",
+            headers:{"Content-Type":"text/plain;charset=utf-8"},
+            body:JSON.stringify({accion:"guardarInventarioLote",registros:payloads})
+        });
+        const resultados=Array.isArray(resultado.resultados)?resultado.resultados:[];
+        const porId=new Map(resultados.map(x=>[x.localId,x]));
+        for(const op of ops){
+            const r=porId.get(op.payload.localId);
+            if(!r)throw new Error("El servidor no confirmó "+op.payload.localId);
+            await marcarOperacionInventarioSincronizada(op,r);
+        }
+        return true;
+    }catch(error){
+        console.warn("Lote de inventario no disponible, se usará sincronización individual:",error);
+        return false;
+    }
+}
+
+async function sincronizarOperacionInventarioIndividual(op){
+    const resultado=await fetchJSONConReintento(API_URL,{
+        method:"POST",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body:JSON.stringify(op.payload)
+    });
+    await marcarOperacionInventarioSincronizada(op,resultado);
+}
+
 async function sincronizarPendientes(){
     if(!navigator.onLine||!dbOffline||sincronizando)return;
     sincronizando=true;
     try{
-        const ops=await dbAll("operaciones");
+        let ops=await dbAll("operaciones");
+        // Limpiar operaciones antiguas claramente corruptas: no tienen cliente, elemento ni cantidad.
+        const corruptas=ops.filter(op=>{
+            const p=op&&op.payload||{};
+            return p.accion!=="eliminarMovimiento" && p.accion!=="editarMovimiento" && !String(p.cliente||"").trim() && !String(p.elemento||"").trim() && !(Number(p.cantidad)||0);
+        });
+        for(const op of corruptas){await dbDelete("operaciones",op.id);}
+        if(corruptas.length)ops=ops.filter(op=>!corruptas.some(c=>c.id===op.id));
         detallePendientesInventario=ops;
         pendientesInventario=ops.length;
         renderizarEstadoConexion();
-        for(const op of ops){
-            try{
-                const respuesta=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload),keepalive:true});
-                const resultado=await respuesta.json();
-                if(!resultado.ok)throw new Error(resultado.error||"Error de sincronización");
-                if(op.payload.accion==="eliminarMovimiento"){
-                    const idx=registros.findIndex(r=>r.id===op.payload.localId);
-                    if(idx>=0)registros.splice(idx,1);
-                }else{
-                    const item=registros.find(r=>r.id===op.payload.localId);
-                    if(item){item.sincronizado=true;item.fila=resultado.fila||item.fila;await dbPut("movimientos",item);}
+
+        const altas=ops.filter(op=>op&&op.payload&&!op.payload.accion);
+        for(let i=0;i<altas.length;i+=SYNC_BATCH_SIZE){
+            const lote=altas.slice(i,i+SYNC_BATCH_SIZE);
+            if(!await sincronizarAltasInventarioLote(lote)){
+                for(const op of lote){
+                    try{
+                        await sincronizarOperacionInventarioIndividual(op);
+                    }catch(error){
+                        console.warn("Pendiente no sincronizado:",error);
+                        break;
+                    }
                 }
-                await dbDelete("operaciones",op.id);
-                detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
-                pendientesInventario=detallePendientesInventario.length;
-                renderizarEstadoConexion();
-            }catch(e){console.warn("Pendiente no sincronizado",e);break;}
+            }
         }
+
+        ops=await dbAll("operaciones");
+        const resto=ops.filter(op=>op&&op.payload&&op.payload.accion);
+        for(const op of resto){
+            try{
+                await sincronizarOperacionInventarioIndividual(op);
+            }catch(error){
+                console.warn("Pendiente no sincronizado:",error);
+                break;
+            }
+        }
+
+        const pendientesRestantes=await dbAll("operaciones");
+        detallePendientesInventario=pendientesRestantes;
+        pendientesInventario=pendientesRestantes.length;
     }finally{
         sincronizando=false;
         renderizarEstadoConexion();
@@ -304,11 +397,11 @@ function programarReintentoSincronizacion(){
         sincronizarXCCPendientes();
     },3000);
 }
-window.addEventListener("online",()=>{
+window.addEventListener("online",async()=>{
     renderizarEstadoConexion();
-    sincronizarPendientes();
-    sincronizarXCCPendientes();
-    actualizarEstadoConexion();
+    try{await sincronizarPendientes();}catch(error){console.warn(error);}
+    try{await sincronizarXCCPendientes();}catch(error){console.warn(error);}
+    await actualizarEstadoConexion();
 });
 window.addEventListener("offline",()=>{clearInterval(intervaloSincronizacion);intervaloSincronizacion=null;renderizarEstadoConexion();});
 
@@ -387,40 +480,48 @@ async function cargarInventario(){
             actualizarResumen();
             actualizarMovimientos();
         }
-        const actualizarRemoto=async()=>{
-            if(!navigator.onLine)return;
-            try{
-                const respuesta=await fetch(API_URL+"?accion=obtenerInventario&fecha="+encodeURIComponent(fechaTexto)+"&_="+Date.now(),{cache:"no-store"});
-                if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
-                const resultado=await respuesta.json();
-                if(!resultado.ok)throw new Error(resultado.error);
-                const servidor=resultado.registros||[];
-                const pendientes=registros.filter(r=>r.sincronizado===false);
-                const fusion=[...servidor];
-                pendientes.forEach(p=>{if(!fusion.some(s=>(s.fila&&p.fila&&s.fila===p.fila)||(s.id&&p.id&&s.id===p.id)))fusion.push(p);});
-                registros=fusion;
-                for(const r of servidor){
-                    r.sincronizado=true;
-                    if(!r.id)r.id=generarIdLocal("srv");
-                    await dbPut("movimientos",r);
-                }
-                actualizarResumen();
-                actualizarMovimientos();
-                sincronizarPendientes();
-            }catch(error){
-                console.warn("No se pudo actualizar inventario remoto:",error);
-                if(!localesHoy.length)mostrarMensaje("❌ No se pudo cargar el inventario","error");
-            }
-        };
-        if(navigator.onLine){
-            if(localesHoy.length)actualizarRemoto();
-            else await actualizarRemoto();
-        }
-    }catch(error){
-        console.error(error);
+        if(!navigator.onLine){return;}
+
+        const respuesta=await fetch(API_URL+"?accion=obtenerInventario&fecha="+encodeURIComponent(fechaTexto)+"&_="+Date.now(),{cache:"no-store"});
+        if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
+        const resultado=await respuesta.json();
+        if(!resultado.ok)throw new Error(resultado.error||"No se pudo cargar el inventario");
+
+        const servidor=Array.isArray(resultado.registros)?resultado.registros:[];
+        // Deduplicar lo que viene del servidor por el ID_LOCAL estable.
+        const vistos=new Set();
+        const servidorUnico=servidor.filter(s=>{
+            const idLocal=String(s.idLocal||"").trim();
+            const clave=idLocal?"id:"+idLocal:"fila:"+String(s.fila||"");
+            if(vistos.has(clave))return false;
+            vistos.add(clave);
+            return true;
+        }).map(r=>({
+            ...r,
+            id: String(r.idLocal||"").trim() || generarIdLocal("srv"),
+            idLocal: String(r.idLocal||"").trim(),
+            sincronizado:true
+        }));
+
+        const pendientes=registros.filter(r=>r&&r.sincronizado===false);
+        const fusion=[...servidorUnico];
+        pendientes.forEach(p=>{
+            if(!fusion.some(s=>
+                (s.idLocal&&p.idLocal&&s.idLocal===p.idLocal) ||
+                (s.fila&&p.fila&&Number(s.fila)===Number(p.fila)) ||
+                (s.id&&p.id&&s.id===p.id)
+            )) fusion.push(p);
+        });
+        registros=fusion;
+
+        for(const r of servidorUnico){await dbPut("movimientos",r);}
         actualizarResumen();
         actualizarMovimientos();
-        if(navigator.onLine)mostrarMensaje("❌ No se pudo cargar el inventario","error");
+    }catch(error){
+        console.warn("No se pudo actualizar inventario remoto:",error);
+        actualizarResumen();
+        actualizarMovimientos();
+        if(navigator.onLine)mostrarMensaje("❌ No se pudo actualizar el inventario. Se conserva lo guardado localmente.","error");
     }
 }
 
@@ -655,7 +756,7 @@ async function editarMovimiento(registro){
     if(!dbOffline)await abrirDBOffline();
     registro.cantidad=cantidad;registro.estado=estado==="MONO"?"MOÑO":"PROCESO";registro.notas=nuevasNotas;registro.sincronizado=false;
     await dbPut("movimientos",registro);
-    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"editarMovimiento",fila:Number(registro.fila)||null,localId:registro.id,cliente:registro.cliente,elemento:registro.elemento,cantidad,estado:registro.estado,notas:nuevasNotas}});
+    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"editarMovimiento",fila:Number(registro.fila)||null,localId:String(registro.idLocal||registro.id||""),cliente:registro.cliente,elemento:registro.elemento,cantidad,estado:registro.estado,notas:nuevasNotas}});
     actualizarResumen();actualizarMovimientos();actualizarEstadoConexion();mostrarMensaje(navigator.onLine?"✓ Cambio guardado. Sincronizando...":"✓ Cambio guardado sin conexión","ok");
     if(navigator.onLine)sincronizarPendientes();
 }
@@ -665,7 +766,7 @@ async function eliminarMovimiento(registro){
     if(!dbOffline)await abrirDBOffline();
     registros=registros.filter(r=>r.id!==registro.id);
     await dbDelete("movimientos",registro.id);
-    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"eliminarMovimiento",fila:Number(registro.fila)||null,localId:registro.id}});
+    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"eliminarMovimiento",fila:Number(registro.fila)||null,localId:String(registro.idLocal||registro.id||"")}});
     actualizarResumen();actualizarMovimientos();actualizarEstadoConexion();mostrarMensaje(navigator.onLine?"✓ Eliminado. Sincronizando...":"✓ Eliminado sin conexión","ok");
     if(navigator.onLine)sincronizarPendientes();
 }
