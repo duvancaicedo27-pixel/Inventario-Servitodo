@@ -612,6 +612,7 @@ function agregarEstilosMovimientos(){
         .movimiento-estado{text-align:center;font-size:10px;font-weight:900;padding:7px 5px;border-radius:7px;color:white}
         .movimiento-estado.mono{background:#168548}
         .movimiento-estado.proceso{background:#145db7}
+        .movimiento-acciones{display:contents}
         .btn-editar-movimiento,.btn-eliminar-movimiento{border:0;border-radius:8px;padding:9px;cursor:pointer;font-weight:800}
         .btn-editar-movimiento{background:#e8f1fb;color:#145db7}
         .btn-eliminar-movimiento{background:#fbeaea;color:#c62828}
@@ -619,20 +620,37 @@ function agregarEstilosMovimientos(){
         .btn-eliminar-movimiento:hover{background:#c62828;color:white}
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
+            #movimientosCard,#listaMovimientos{width:100%;max-width:100%;min-width:0}
             .movimiento-item{
-                grid-template-columns:60px minmax(0,1fr) 82px 82px;
-                grid-template-areas:"hora cliente cantidad estado" "hora elemento editar eliminar";
+                width:100%;
+                min-width:0;
+                grid-template-columns:58px minmax(0,1fr);
+                grid-template-areas:
+                    "hora cliente"
+                    "hora elemento"
+                    "cantidad estado"
+                    "acciones acciones";
                 gap:8px;
                 overflow:visible;
             }
             .movimiento-hora{grid-area:hora;align-self:start;padding-top:4px}
-            .movimiento-cliente{grid-area:cliente;grid-column:auto;grid-row:auto;min-width:0}
-            .movimiento-elemento{grid-area:elemento;grid-column:auto;grid-row:auto;min-width:0}
-            .movimiento-cantidad{grid-area:cantidad;grid-column:auto;grid-row:auto;align-self:center;white-space:nowrap}
-            .movimiento-estado{grid-area:estado;grid-column:auto;grid-row:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-            .btn-editar-movimiento{grid-area:editar;grid-column:auto;grid-row:auto;width:100%;min-width:0}
-            .btn-eliminar-movimiento{grid-area:eliminar;grid-column:auto;grid-row:auto;width:100%;min-width:0;display:block}
+            .movimiento-cliente{grid-area:cliente;min-width:0}
+            .movimiento-elemento{grid-area:elemento;min-width:0}
+            .movimiento-cantidad{grid-area:cantidad;align-self:center;white-space:nowrap;text-align:left}
+            .movimiento-estado{grid-area:estado;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .movimiento-acciones{
+                grid-area:acciones;
+                display:grid;
+                grid-template-columns:1fr 1fr;
+                gap:8px;
+                min-width:0;
+            }
+            .btn-editar-movimiento,.btn-eliminar-movimiento{width:100%;min-width:0;display:block}
             .movimiento-dato strong{white-space:normal;overflow:visible;text-overflow:clip}
+        }
+        @media(max-width:420px){
+            .movimiento-item{grid-template-columns:50px minmax(0,1fr)}
+            .btn-editar-movimiento,.btn-eliminar-movimiento{font-size:12px;padding:10px 6px}
         }
     `;
 
@@ -671,8 +689,10 @@ function actualizarMovimientos(){
             </div>
             <div class="movimiento-cantidad">${formatear(registro.cantidad)}</div>
             <div class="movimiento-estado ${clase}">${escaparHTML(registro.estado)}</div>
-            <button class="btn-editar-movimiento" type="button">✏️ Editar</button>
-            <button class="btn-eliminar-movimiento" type="button">🗑️</button>
+            <div class="movimiento-acciones">
+                <button class="btn-editar-movimiento" type="button">✏️ Editar</button>
+                <button class="btn-eliminar-movimiento" type="button">🗑️ Eliminar</button>
+            </div>
         `;
 
         item.querySelector(".btn-editar-movimiento").addEventListener("click",()=>editarMovimiento(registro));
