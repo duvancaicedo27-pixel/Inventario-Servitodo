@@ -639,7 +639,7 @@ function actualizarMovimientos(){
             <div class="movimiento-cantidad">${formatear(registro.cantidad)}</div>
             <div class="movimiento-estado ${clase}">${escaparHTML(registro.estado)}</div>
             <button class="btn-editar-movimiento" type="button">✏️ Editar</button>
-            <button class="btn-eliminar-movimiento" type="button" title="Eliminar movimiento">🗑️ Eliminar</button>
+            <button class="btn-eliminar-movimiento" type="button">🗑️</button>
         `;
 
         item.querySelector(".btn-editar-movimiento").addEventListener("click",()=>editarMovimiento(registro));
