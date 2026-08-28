@@ -1610,7 +1610,7 @@ function dibujarReporte(
     ctx.font="bold 18px Arial";
 
     ctx.fillText(
-        "Duvan Caicedo",
+        "Duvan C",
         f2+73,
         footerY+62
     );
@@ -1758,10 +1758,26 @@ async function cargarDatosXCC(){
     try{
         const borradorLocal=localStorage.getItem("servitodo_xcc_ultimaEdicion");
         if(navigator.onLine){
-            const r=await fetch(API_URL+"?accion=obtenerXCC",{cache:"no-store"});
-            resultado=await r.json();
-            if(!resultado.ok)throw new Error(resultado.error||"No se pudo obtener XCC");
-            localStorage.setItem("servitodo_xcc_cache",JSON.stringify(resultado));
+            let ultimoError=null;
+            for(let intento=1; intento<=3; intento++){
+                try{
+                    const controller=new AbortController();
+                    const temporizador=setTimeout(()=>controller.abort(),10000);
+                    const r=await fetch(API_URL+"?accion=obtenerXCC&_="+Date.now(),{cache:"no-store",signal:controller.signal});
+                    clearTimeout(temporizador);
+                    if(!r.ok)throw new Error("HTTP "+r.status);
+                    const dato=await r.json();
+                    if(!dato.ok)throw new Error(dato.error||"No se pudo obtener XCC");
+                    resultado=dato;
+                    localStorage.setItem("servitodo_xcc_cache",JSON.stringify(resultado));
+                    ultimoError=null;
+                    break;
+                }catch(e){
+                    ultimoError=e;
+                    if(intento<3)await new Promise(resolve=>setTimeout(resolve,500*intento));
+                }
+            }
+            if(!resultado)throw ultimoError||new Error("No se pudo actualizar XCC");
         }else{
             const cache=localStorage.getItem("servitodo_xcc_cache");
             if(cache)resultado=JSON.parse(cache);
@@ -1788,14 +1804,14 @@ async function cargarDatosXCC(){
         if(borrador){
             try{
                 const b=JSON.parse(borrador);
-                if(Array.isArray(b)&&b.length){datosXCC=b;renderizarXCC();mensajeXCC("⚠ Sin conexión: mostrando la última edición local","error");return;}
+                if(Array.isArray(b)&&b.length){datosXCC=b;renderizarXCC();mensajeXCC(navigator.onLine?"⚠ No se pudo actualizar XCC. Mostrando la última edición guardada.":"⚠ Sin conexión: mostrando la última edición local","error");return;}
             }catch(e){}
         }
         if(cache){
             try{
                 const r=JSON.parse(cache);
                 datosXCC=(r.configuracion||[]).map(i=>{const u=i.ultimo||{};return{cliente:i.cliente,estibasDia:Number(i.estibasDia)||0,inventarioActual:Number(u.inventarioActual)||0,objetivo:Number(u.objetivo)||0,ultimoId:u.id||"",ultimaFecha:u.fecha||""};});
-                renderizarXCC();mensajeXCC("⚠ Sin conexión: mostrando el último inventario disponible","error");return;
+                renderizarXCC();mensajeXCC(navigator.onLine?"⚠ No se pudo actualizar XCC. Mostrando el último inventario guardado.":"⚠ Sin conexión: mostrando el último inventario disponible","error");return;
             }catch(e){}
         }
         tb.innerHTML=`<tr><td colspan="6" class="empty">No se pudo cargar el inventario XCC.</td></tr>`;
@@ -2105,7 +2121,7 @@ function generarReporteXCC(){
     ctx.fillStyle=grisTexto; ctx.font="15px Arial";
     ctx.fillText("Elaborado por:",f2+73,footerY+32);
     ctx.fillStyle=azulTexto; ctx.font="bold 18px Arial";
-    ctx.fillText("Duvan Caicedo",f2+73,footerY+62);
+    ctx.fillText("Duvan C",f2+73,footerY+62);
 
     // Documento
     const docX=f3+40;
