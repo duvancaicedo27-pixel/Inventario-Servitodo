@@ -2200,7 +2200,7 @@ function generarReporteXCC(){
     ctx.fillText("Elaborado por:",f2+73,footerY+32);
     ctx.fillStyle=azulTexto;
     ctx.font="bold 18px Arial";
-    ctx.fillText("Duvan C",f2+73,footerY+62);
+    ctx.fillText("Duvan Caicedo",f2+73,footerY+62);
 
     // Documento
     const docX=f3+40;
