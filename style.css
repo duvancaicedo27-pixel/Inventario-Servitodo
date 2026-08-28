@@ -959,7 +959,7 @@ button{
 .xcc-actions .primary-button,.xcc-actions .report-button{width:100%;}
 }
 
-/* V15 - mismo boton original, solo resaltado mas evidente */
+/* V18 - solo sombra sutil y mas visible; boton original intacto */
 .estado-btn.active{
     opacity:1;
     transform:translateY(-1px);
@@ -968,19 +968,9 @@ button{
 }
 
 .estado-btn.mono.active{
-    box-shadow:
-        0 0 0 3px #ffffff,
-        0 0 0 6px #168548,
-        0 0 18px rgba(22,133,72,.50),
-        0 0 30px rgba(22,133,72,.22),
-        0 7px 16px rgba(22,133,72,.24);
+    box-shadow:0 7px 18px rgba(22,133,72,.42);
 }
 
 .estado-btn.proceso.active{
-    box-shadow:
-        0 0 0 3px #ffffff,
-        0 0 0 6px #145db7,
-        0 0 18px rgba(20,93,183,.50),
-        0 0 30px rgba(20,93,183,.22),
-        0 7px 16px rgba(20,93,183,.24);
+    box-shadow:0 7px 18px rgba(20,93,183,.42);
 }
