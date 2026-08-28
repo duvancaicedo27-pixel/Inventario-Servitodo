@@ -196,35 +196,28 @@ function dbAll(store){
         req.onerror=()=>reject(req.error);
     });
 }
-function generarIdLocal(prefijo="id"){return prefijo+"-"+Date.now()+"-"+Math.random().toString(36).slice(2,10)}
 async function limpiarOperacionesInvalidas(){
     if(!dbOffline)return;
     try{
-        const [ops,opsXcc]=await Promise.all([dbAll("operaciones"),dbAll("operacionesXCC")]);
-        // Elimina únicamente pendientes claramente corruptos/huérfanos.
-        // No toca registros válidos ni el historial local.
-        for(const op of ops){
+        const operaciones=await dbAll("operaciones");
+        for(const op of operaciones){
             const p=op?.payload||{};
+            const accion=p.accion||"";
+            // Solo limpiamos operaciones de registro normal claramente corruptas.
+            // Las operaciones de editar/eliminar/XCC se conservan.
+            if(accion==="editarMovimiento"||accion==="eliminarMovimiento"||accion==="registrarInventarioXCC")continue;
             const cliente=String(p.cliente||"").trim();
             const elemento=String(p.elemento||"").trim();
-            const cantidad=Number(p.cantidad)||0;
-            const estado=String(p.estado||"").trim();
-            if(!cliente || !elemento || cantidad<=0 || !estado){
-                await dbDelete("operaciones",op.id);
-            }
+            const cantidad=Number(p.cantidad);
+            const estado=normalizarTexto(p.estado);
+            const valida=cliente&&elemento&&cantidad>0&&(estado==="MONO"||estado==="PROCESO");
+            if(!valida)await dbDelete("operaciones",op.id);
         }
-        for(const op of opsXcc){
-            const p=op?.payload||{};
-            const cliente=String(p.cliente||"").trim();
-            if(!cliente){
-                await dbDelete("operacionesXCC",op.id);
-            }
-        }
-    }catch(e){
-        console.warn("No se pudieron limpiar pendientes inválidos:",e);
+    }catch(error){
+        console.warn("No se pudo limpiar operaciones inválidas:",error);
     }
 }
-
+function generarIdLocal(prefijo="id"){return prefijo+"-"+Date.now()+"-"+Math.random().toString(36).slice(2,10)}
 function renderizarColaSincronizacion(){
     let panel=document.getElementById("colaSincronizacion");
     if(!panel){
@@ -232,17 +225,22 @@ function renderizarColaSincronizacion(){
         panel.id="colaSincronizacion";
         document.body.appendChild(panel);
         const st=document.createElement("style");
-        st.textContent=`#colaSincronizacion{position:fixed;right:18px;bottom:68px;width:min(360px,calc(100vw - 36px));max-height:38vh;overflow:auto;z-index:9998;background:#fff;border:1px solid #d9e2eb;border-radius:14px;box-shadow:0 14px 35px rgba(16,43,78,.16);padding:13px;display:none;font-family:Inter,Segoe UI,Arial,sans-serif;color:#17385d}.cola-titulo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;color:#17385d;font-size:12px;font-weight:900}.cola-subtitulo{color:#71829a;font-size:10px;font-weight:700}.cola-lista{display:grid;gap:8px}.cola-item{border:1px solid #e0e7ef;border-radius:10px;padding:10px;background:#fff}.cola-item-tipo{display:inline-flex;align-items:center;padding:4px 7px;border-radius:6px;background:#eef4fa;color:#195db7;font-size:9px;font-weight:900;letter-spacing:.3px;margin-bottom:7px}.cola-item-linea{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}.cola-item-info strong{display:block;color:#17385d;font-size:12px;line-height:1.25}.cola-item-info span{display:block;color:#6f8298;font-size:10px;margin-top:3px;line-height:1.3}.cola-item-estado{font-size:9px;font-weight:900;white-space:nowrap;padding:5px 7px;border-radius:6px;background:#fff4d7;color:#9a6800}.cola-item.inventario .cola-item-tipo{background:#eaf4ee;color:#168548}.cola-item.xcc .cola-item-tipo{background:#eef0fb;color:#7140a8}.cola-vacio{padding:7px 2px;color:#7c8ea2;font-size:10px}@media(max-width:600px){#colaSincronizacion{right:10px;bottom:66px;width:calc(100vw - 20px);max-height:48vh}}`;
+        st.textContent=`#colaSincronizacion{position:fixed;right:18px;bottom:72px;width:min(420px,calc(100vw - 36px));max-height:55vh;overflow:auto;z-index:9998;background:#fff;border:1px solid #d9e2eb;border-radius:14px;box-shadow:0 14px 35px rgba(16,43,78,.16);padding:13px;display:none;font-family:Inter,Segoe UI,Arial,sans-serif;color:#17385d}.cola-titulo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;color:#17385d;font-size:12px;font-weight:900}.cola-subtitulo{color:#71829a;font-size:10px;font-weight:700}.cola-lista{display:grid;gap:8px}.cola-item{border:1px solid #e0e7ef;border-radius:10px;padding:10px;background:#fff}.cola-item-tipo{display:inline-flex;align-items:center;padding:4px 7px;border-radius:6px;background:#eef4fa;color:#195db7;font-size:9px;font-weight:900;letter-spacing:.3px;margin-bottom:7px}.cola-item-linea{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}.cola-item-info strong{display:block;color:#17385d;font-size:12px;line-height:1.25}.cola-item-info span{display:block;color:#6f8298;font-size:10px;margin-top:3px;line-height:1.3}.cola-item-estado{font-size:9px;font-weight:900;white-space:nowrap;padding:5px 7px;border-radius:6px;background:#fff4d7;color:#9a6800}.cola-item.inventario .cola-item-tipo{background:#eaf4ee;color:#168548}.cola-item.xcc .cola-item-tipo{background:#eef0fb;color:#7140a8}.cola-vacio{padding:7px 2px;color:#7c8ea2;font-size:10px}@media(max-width:600px){#colaSincronizacion{right:10px;bottom:66px;width:calc(100vw - 20px);max-height:48vh}}`;
         document.head.appendChild(st);
     }
     const total=detallePendientesInventario.length+detallePendientesXCC.length;
-    if(total===0 || sincronizando){
+    if(sincronizando){
+        panel.style.display="none";
+        notificacionVisible=false;
+        return;
+    }
+    if(total===0){
         clearTimeout(temporizadorNotificacion);
         temporizadorNotificacion=null;
         panel.style.display="none";
         panel.classList.remove("visible");
         notificacionVisible=false;
-        if(total===0)firmaNotificacion="";
+        firmaNotificacion="";
         return;
     }
     const inventario=detallePendientesInventario.map(op=>{const p=op.payload||{};return`<div class="cola-item inventario"><div class="cola-item-tipo">INVENTARIO</div><div class="cola-item-linea"><div class="cola-item-info"><strong>${escaparHTML(p.cliente||"Sin cliente")} · ${escaparHTML(p.elemento||"Sin elemento")}</strong><span>${formatear(p.cantidad)} und · ${escaparHTML(p.estado||"Sin estado")}${p.hora?" · "+escaparHTML(p.hora):""}</span></div><div class="cola-item-estado">${sincronizando?"SINCRONIZANDO":"PENDIENTE"}</div></div></div>`}).join("");
@@ -570,7 +568,7 @@ function actualizarResumen(){
 function crearSeccionMovimientos(){
     if(document.getElementById("movimientosCard"))return;
 
-    const main=document.getElementById("moduloInventario") || document.querySelector("main");
+    const main=document.querySelector("main");
     if(!main)return;
 
     const card=document.createElement("section");
@@ -590,11 +588,8 @@ function crearSeccionMovimientos(){
 
     const cards=main.querySelectorAll(".card");
 
-    if(cards.length>=2){
-        cards[cards.length-1].after(card);
-    }else{
-        main.appendChild(card);
-    }
+    if(cards.length>=2)cards[cards.length-1].after(card);
+    else main.appendChild(card);
 
     agregarEstilosMovimientos();
 }
@@ -783,8 +778,6 @@ function prepararDatosReporte(){
     const grupos={};
 
     registros.forEach(registro=>{
-        const estadoReporte=normalizarTexto(registro.estado);
-        if(estadoReporte!=="MONO" && estadoReporte!=="PROCESO") return;
         const cliente=registro.cliente;
 
         if(!grupos[cliente])grupos[cliente]=[];
@@ -1669,10 +1662,9 @@ if(descargarReporte){
 // =====================================================
 
 async function iniciarAplicacion(){
-    actualizarEstadoConexion();
     try{await abrirDBOffline();}catch(error){console.warn("Almacenamiento local no disponible:",error);}
-    try{await limpiarOperacionesInvalidas();}catch(error){console.warn("No se pudieron limpiar pendientes inválidos:",error);}
-    try{await actualizarEstadoConexion();}catch(error){}
+    try{await limpiarOperacionesInvalidas();}catch(error){console.warn("Error limpiando cola local:",error);}
+    actualizarEstadoConexion();
     try{await cargarCatalogos();}catch(error){console.error("Error cargando catálogos:",error);}
     try{await cargarInventario();}catch(error){console.error("Error cargando inventario:",error);}
     try{if(document.getElementById("tablaXCC"))await cargarDatosXCC();}catch(error){console.warn("Error cargando XCC:",error);}
@@ -1794,219 +1786,7 @@ async function sincronizarXCCPendientes(){
         programarReintentoSincronizacion();
     }
 }
-function prepararDatosReporteXCC(){
-    const datos=Array.isArray(datosXCC)?datosXCC:[];
-    return datos.map(f=>({
-        cliente:f.cliente||"",
-        estibasDia:Number(f.estibasDia)||0,
-        inventarioActual:Number(f.inventarioActual)||0,
-        diasCubiertos:(Number(f.estibasDia)||0)>0?(Number(f.inventarioActual)||0)/(Number(f.estibasDia)||1):0,
-        objetivo:Number(f.objetivo)||0,
-        faltante:(Number(f.objetivo)||0)-(Number(f.inventarioActual)||0)
-    }));
-}
-
-function calcularAltoReporteXCC(filas){
-    return 170+170+(filas.length*58)+150;
-}
-
-function dibujarReporteXCC(ctx,ancho,alto,filas,fechaReporte,horaReporte){
-    const azul="#102b4e";
-    const azulTexto="#11253f";
-    const verde="#168b3b";
-    const azulProceso="#1957ae";
-    const morado="#7140a8";
-    const borde="#c8d0d8";
-    const grisClaro="#f5f6f8";
-    const blanco="#ffffff";
-    const grisTexto="#6f7d8c";
-
-    ctx.fillStyle=blanco;
-    ctx.fillRect(0,0,ancho,alto);
-
-    const margen=14;
-    const headerX=margen;
-    const headerY=14;
-    const headerW=ancho-(margen*2);
-    const headerH=112;
-
-    ctx.fillStyle=azul;
-    ctx.fillRect(headerX,headerY,headerW,headerH);
-
-    const bloqueFecha=330;
-    const bloqueLogo=330;
-
-    ctx.strokeStyle="rgba(255,255,255,.5)";
-    ctx.lineWidth=2;
-    ctx.beginPath();
-    ctx.moveTo(headerX+bloqueFecha,headerY);
-    ctx.lineTo(headerX+bloqueFecha,headerY+headerH);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(headerX+headerW-bloqueLogo,headerY);
-    ctx.lineTo(headerX+headerW-bloqueLogo,headerY+headerH);
-    ctx.stroke();
-
-    const calX=50;
-    const calY=43;
-    ctx.strokeStyle="#c7d0db";
-    ctx.lineWidth=4;
-    ctx.strokeRect(calX,calY,34,31);
-    ctx.beginPath();
-    ctx.moveTo(calX+7,calY-7);ctx.lineTo(calX+7,calY+4);
-    ctx.moveTo(calX+27,calY-7);ctx.lineTo(calX+27,calY+4);
-    ctx.stroke();
-    ctx.lineWidth=2;
-    ctx.beginPath();
-    for(let i=0;i<3;i++){ctx.moveTo(calX+8,calY+11+i*7);ctx.lineTo(calX+29,calY+11+i*7);}
-    ctx.stroke();
-
-    ctx.fillStyle=blanco;
-    ctx.textAlign="left";
-    ctx.font="bold 34px Arial";
-    ctx.fillText(fechaReporte.replace(/\//g,"-"),105,65);
-    ctx.font="bold 18px Arial";
-    ctx.fillText("Fecha del inventario",106,91);
-
-    const centroX=headerX+bloqueFecha+26;
-    ctx.fillStyle=blanco;
-    ctx.font="bold 22px Arial";
-    ctx.fillText("INVENTARIO DIARIO",centroX,48);
-    ctx.font="bold 58px Arial";
-    ctx.fillText("SERVITODO",centroX,99);
-
-    if(logoServitodo.complete&&logoServitodo.naturalWidth>0){
-        const areaX=headerX+headerW-bloqueLogo;
-        const areaY=headerY;
-        const areaW=bloqueLogo;
-        const areaH=headerH;
-        const maxW=205;
-        const maxH=96;
-        let logoW=logoServitodo.naturalWidth;
-        let logoH=logoServitodo.naturalHeight;
-        const escala=Math.min(maxW/logoW,maxH/logoH);
-        logoW*=escala;logoH*=escala;
-        ctx.drawImage(logoServitodo,areaX+(areaW-logoW)/2,areaY+(areaH-logoH)/2,logoW,logoH);
-    }
-
-    const tablaX=14;
-    const tablaY=146;
-    const tablaW=ancho-(tablaX*2);
-    const cols=[250,180,215,175,190,176];
-    const total=cols.reduce((a,b)=>a+b,0);
-    const escala=tablaW/total;
-    const w=cols.map(v=>v*escala);
-    const x=[tablaX];
-    for(let i=1;i<w.length;i++)x.push(x[i-1]+w[i-1]);
-    const filaH=58;
-
-    ctx.fillStyle=grisClaro;
-    ctx.fillRect(tablaX,tablaY,tablaW,76);
-    ctx.strokeStyle=borde;
-    ctx.lineWidth=1;
-    ctx.strokeRect(tablaX,tablaY,tablaW,76);
-
-    const encabezados=["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"];
-    const colores=[azulTexto,azulTexto,azulTexto,azulProceso,azulTexto,morado];
-    ctx.font="bold 18px Arial";
-    ctx.textAlign="center";
-    encabezados.forEach((txt,i)=>{
-        ctx.fillStyle=colores[i];
-        ctx.fillText(txt,x[i]+w[i]/2,tablaY+46);
-    });
-
-    let y=tablaY+76;
-    filas.forEach((f,i)=>{
-        ctx.fillStyle=i%2===0?blanco:"#fafbfc";
-        ctx.fillRect(tablaX,y,tablaW,filaH);
-        ctx.strokeStyle=borde;
-        ctx.strokeRect(tablaX,y,tablaW,filaH);
-
-        const valores=[f.cliente,formatear(f.estibasDia),formatear(f.inventarioActual),f.diasCubiertos.toFixed(1),formatear(f.objetivo),formatear(f.faltante)];
-        ctx.font="bold 17px Arial";
-        valores.forEach((v,j)=>{
-            ctx.fillStyle=j===3?azulProceso:(j===5?(f.faltante>0?"#c77700":f.faltante<0?verde:grisTexto):azulTexto);
-            ctx.textAlign=j===0?"left":"center";
-            if(j===0) textoAjustado(ctx,v,x[j]+16,y+37,w[j]-32);
-            else ctx.fillText(v,x[j]+w[j]/2,y+37);
-        });
-        y+=filaH;
-    });
-
-    [1,2,3,4,5].forEach(i=>{
-        ctx.strokeStyle=borde;
-        ctx.beginPath();ctx.moveTo(x[i],tablaY);ctx.lineTo(x[i],y);ctx.stroke();
-    });
-    ctx.strokeStyle=borde;
-    ctx.lineWidth=2;
-    ctx.strokeRect(tablaX,tablaY,tablaW,y-tablaY);
-
-    const footerY=y+10;
-    const footerH=116;
-    const f1=tablaX;
-    const f2=tablaX+tablaW/3;
-    const f3=tablaX+(tablaW/3)*2;
-
-    ctx.fillStyle=blanco;
-    ctx.fillRect(f1,footerY,tablaW,footerH);
-    ctx.strokeStyle=borde;
-    ctx.lineWidth=1;
-    ctx.strokeRect(f1,footerY,tablaW,footerH);
-    ctx.beginPath();
-    ctx.moveTo(f2,footerY);ctx.lineTo(f2,footerY+footerH);
-    ctx.moveTo(f3,footerY);ctx.lineTo(f3,footerY+footerH);
-    ctx.stroke();
-
-    ctx.strokeStyle="#738292";
-    ctx.lineWidth=3;
-    ctx.beginPath();ctx.arc(f1+40,footerY+44,18,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+40,footerY+31);ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+49,footerY+49);ctx.stroke();
-    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.textAlign="left";
-    ctx.fillText("Generado el:",f1+73,footerY+32);
-    ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";
-    ctx.fillText(fechaReporte+" "+horaReporte,f1+73,footerY+62);
-
-    const personaX=f2+42;
-    ctx.strokeStyle="#738292";ctx.lineWidth=3;
-    ctx.beginPath();ctx.arc(personaX,footerY+34,8,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.arc(personaX,footerY+68,17,Math.PI,0);ctx.stroke();
-    ctx.fillStyle=grisTexto;ctx.font="15px Arial";
-    ctx.fillText("Elaborado por:",f2+73,footerY+32);
-    ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";
-    ctx.fillText("Duvan C",f2+73,footerY+62);
-
-    const docX=f3+40;
-    ctx.strokeStyle="#738292";ctx.lineWidth=3;
-    ctx.strokeRect(docX-13,footerY+24,25,34);
-    ctx.beginPath();
-    ctx.moveTo(docX-6,footerY+34);ctx.lineTo(docX+6,footerY+34);
-    ctx.moveTo(docX-6,footerY+41);ctx.lineTo(docX+6,footerY+41);
-    ctx.moveTo(docX-6,footerY+48);ctx.lineTo(docX+6,footerY+48);
-    ctx.stroke();
-    ctx.fillStyle=grisTexto;ctx.font="15px Arial";
-    ctx.fillText("Inventario diario Servitodo",f3+73,footerY+32);
-    ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";
-    ctx.fillText("Página 1 de 1",f3+73,footerY+62);
-}
-
-async function generarReporteXCC(){
-    const momento=new Date();
-    const fechaReporte=momento.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
-    const horaReporte=momento.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-    const filas=prepararDatosReporteXCC();
-    if(!filas.length){mensajeXCC("No hay datos XCC para generar el reporte","error");return;}
-    if(!logoServitodo.complete){await new Promise(resolve=>{logoServitodo.onload=resolve;logoServitodo.onerror=resolve;});}
-    const canvas=document.createElement("canvas");
-    const ancho=1200;
-    const alto=calcularAltoReporteXCC(filas);
-    canvas.width=ancho;canvas.height=alto;
-    const ctx=canvas.getContext("2d");
-    dibujarReporteXCC(ctx,ancho,alto,filas,fechaReporte,horaReporte);
-    reporteXCCData=canvas.toDataURL("image/png");
-    const img=document.getElementById("imagenReporteXCC");
-    if(img)img.src=reporteXCCData;
-    document.getElementById("modalReporteXCC")?.classList.add("visible");
-}
+function generarReporteXCC(){const fecha=new Date(),ft=fecha.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"}),ht=fecha.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}),canvas=document.createElement("canvas"),w=1400,h=220+datosXCC.length*60;canvas.width=w;canvas.height=h;const c=canvas.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,w,h);c.fillStyle="#102b4e";c.fillRect(0,0,w,120);c.fillStyle="#fff";c.font="bold 34px Arial";c.fillText("INVENTARIO DIARIO ESTIBAS XCC",42,55);c.font="bold 20px Arial";c.fillText(ft+"  |  "+ht,42,90);c.fillStyle="#102b4e";c.font="bold 17px Arial";["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"].forEach((x,i)=>c.fillText(x,[40,330,500,730,930,1100][i],160));c.font="16px Arial";datosXCC.forEach((f,i)=>{const y=195+i*60,d=f.estibasDia>0?f.inventarioActual/f.estibasDia:0,x=f.objetivo-f.inventarioActual;[f.cliente,formatear(f.estibasDia),formatear(f.inventarioActual),d.toFixed(1),formatear(f.objetivo),formatear(x)].forEach((v,j)=>c.fillText(String(v),[40,330,500,730,930,1100][j],y));});reporteXCCData=canvas.toDataURL("image/png");const img=document.getElementById("imagenReporteXCC");if(img)img.src=reporteXCCData;document.getElementById("modalReporteXCC")?.classList.add("visible");}
 function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();}
 prepararEventosXCC();
 iniciarAplicacion();

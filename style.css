@@ -953,3 +953,1088 @@ button{
 .xcc-actions .primary-button{width:auto;min-width:250px;}
 .xcc-actions .report-button{min-width:190px;}
 @media(max-width:850px){.modulos{padding:0 12px;}.modulo-btn{flex:1;padding:11px 10px;font-size:10px;}.xcc-fecha{align-items:flex-start;flex-direction:column;gap:5px;}.xcc-actions{flex-direction:column;}.xcc-actions .primary-button,.xcc-actions .report-button{width:100%;}}
+
+
+/* =========================================================
+   AJUSTE MOVIL — INVENTARIO DIARIO + ESTIBAS XCC
+   Solo presentación responsive. No modifica lógica.
+========================================================= */
+@media (max-width: 600px){
+    html, body{
+        width:100%;
+        max-width:100%;
+        overflow-x:hidden;
+    }
+
+    .top-header{
+        width:100%;
+        max-width:100%;
+    }
+
+    .header-inner{
+        width:100%;
+        max-width:100%;
+        min-height:0;
+        grid-template-columns:minmax(0,1fr) auto;
+        gap:10px;
+        padding:14px 14px 16px;
+    }
+
+    .header-title{
+        min-width:0;
+    }
+
+    .header-title div{
+        font-size:13px;
+        line-height:1.1;
+    }
+
+    .header-title strong{
+        font-size:31px;
+        line-height:.95;
+        white-space:nowrap;
+    }
+
+    .header-logo{
+        width:96px;
+        min-width:96px;
+        height:78px;
+        min-height:78px;
+    }
+
+    .header-logo img{
+        width:92px;
+        max-width:92px;
+        max-height:72px;
+    }
+
+    .header-date{
+        min-width:0;
+        gap:12px;
+        padding-top:10px;
+    }
+
+    .header-date-main{
+        font-size:20px;
+        white-space:nowrap;
+    }
+
+    .header-date-label{
+        font-size:11px;
+    }
+
+    .calendar-icon{
+        width:42px;
+        min-width:42px;
+        height:40px;
+    }
+
+    .modulos{
+        width:100%;
+        max-width:100%;
+        padding:8px 10px 0;
+        gap:6px;
+        margin:0;
+        box-sizing:border-box;
+    }
+
+    .modulo-btn{
+        min-width:0;
+        flex:1 1 0;
+        padding:11px 7px;
+        font-size:10px;
+        line-height:1.1;
+        white-space:nowrap;
+    }
+
+    .dashboard{
+        width:100%;
+        max-width:100%;
+        margin:0;
+        padding:10px;
+        display:block;
+        box-sizing:border-box;
+    }
+
+    .dashboard > #moduloInventario,
+    .dashboard > #moduloXCC{
+        width:100%;
+        max-width:100%;
+        box-sizing:border-box;
+    }
+
+    .dashboard > #moduloInventario{
+        display:contents;
+    }
+
+    .dashboard > #moduloXCC{
+        display:block;
+    }
+
+    .card,
+    .form-card,
+    .summary-card,
+    .xcc-card{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        box-sizing:border-box;
+        padding:14px;
+        margin-left:0;
+        margin-right:0;
+    }
+
+    .section-header{
+        min-width:0;
+        gap:10px;
+        margin-bottom:14px;
+    }
+
+    .section-icon{
+        width:36px;
+        min-width:36px;
+        height:36px;
+        font-size:21px;
+    }
+
+    .section-header h2{
+        font-size:18px;
+        line-height:1.15;
+    }
+
+    .section-header p{
+        font-size:11px;
+        line-height:1.25;
+    }
+
+    .form-grid{
+        width:100%;
+        min-width:0;
+        gap:12px;
+    }
+
+    .form-field,
+    .elemento-field,
+    .notes-field{
+        width:100%;
+        min-width:0;
+    }
+
+    .form-field input,
+    .form-field select,
+    .form-field textarea{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+    }
+
+    .elemento-input-row{
+        width:100%;
+        min-width:0;
+    }
+
+    .elemento-input-row input{
+        flex:1 1 auto;
+        min-width:0;
+    }
+
+    .clear-element{
+        flex:0 0 44px;
+        width:44px;
+    }
+
+    .elementos-dropdown{
+        right:51px;
+        max-width:calc(100% - 51px);
+        box-sizing:border-box;
+    }
+
+    .estado-buttons{
+        width:100%;
+        grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+        gap:7px;
+    }
+
+    .estado-btn{
+        min-width:0;
+        padding:0 6px;
+        font-size:14px;
+    }
+
+    .primary-button,
+    .report-button{
+        max-width:100%;
+        box-sizing:border-box;
+    }
+
+    .stats-grid{
+        width:100%;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:7px;
+    }
+
+    .stat-card{
+        min-width:0;
+        padding:11px;
+    }
+
+    .stat-top{
+        min-width:0;
+        font-size:10px;
+    }
+
+    .stat-card strong{
+        font-size:22px;
+    }
+
+    .secondary-stats{
+        gap:12px;
+        flex-wrap:wrap;
+    }
+
+    .subsection-header{
+        width:100%;
+        min-width:0;
+        gap:10px;
+    }
+
+    .subsection-header > div{
+        min-width:0;
+    }
+
+    .report-button{
+        width:100%;
+        padding:11px 10px;
+        font-size:11px;
+    }
+
+    .table-container{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow-x:auto;
+        overflow-y:hidden;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    .inventory-table{
+        min-width:640px;
+    }
+
+    /* XCC: la tabla deja el scroll únicamente dentro de su propio contenedor */
+    #moduloXCC .table-container{
+        width:100%;
+        max-width:100%;
+        overflow-x:auto;
+        overflow-y:hidden;
+    }
+
+    #moduloXCC .xcc-table{
+        min-width:760px;
+        width:760px;
+    }
+
+    #moduloXCC .xcc-input{
+        min-width:105px;
+        max-width:100%;
+    }
+
+    .xcc-fecha{
+        width:100%;
+        box-sizing:border-box;
+        margin-bottom:12px;
+        padding:11px 12px;
+    }
+
+    .xcc-fecha span{
+        font-size:10px;
+    }
+
+    .xcc-fecha strong{
+        font-size:17px;
+    }
+
+    .xcc-actions{
+        width:100%;
+        flex-direction:column;
+        gap:8px;
+    }
+
+    .xcc-actions .primary-button,
+    .xcc-actions .report-button{
+        width:100%;
+        min-width:0;
+    }
+
+    #movimientosCard{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        box-sizing:border-box;
+    }
+
+    #listaMovimientos{
+        width:100%;
+        min-width:0;
+    }
+
+    .movimiento-item{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        box-sizing:border-box;
+    }
+
+    .report-modal{
+        padding:6px;
+    }
+
+    .report-modal-content{
+        width:100%;
+        max-width:100%;
+        max-height:96vh;
+    }
+
+    .report-preview{
+        max-width:100%;
+        overflow:auto;
+    }
+
+    /* Estado de conexión: compacto para móvil */
+    #estadoConexion{
+        right:10px !important;
+        bottom:10px !important;
+        padding:8px 11px !important;
+        font-size:10px !important;
+    }
+
+    #colaSincronizacion{
+        right:10px !important;
+        bottom:58px !important;
+        width:min(320px,calc(100vw - 20px)) !important;
+        max-width:calc(100vw - 20px) !important;
+        max-height:38vh !important;
+        padding:10px !important;
+    }
+}
+
+@media (min-width: 601px) and (max-width: 850px){
+    html,body{overflow-x:hidden;}
+
+    .dashboard{
+        width:100%;
+        max-width:100%;
+        box-sizing:border-box;
+    }
+
+    .dashboard > #moduloXCC{
+        width:100%;
+        max-width:100%;
+        box-sizing:border-box;
+    }
+
+    .card,
+    .xcc-card{
+        min-width:0;
+        max-width:100%;
+        box-sizing:border-box;
+    }
+
+    #moduloXCC .table-container,
+    .table-container{
+        max-width:100%;
+        overflow-x:auto;
+    }
+}
+
+/* =========================================================
+   ADAPTACION UNIVERSAL REAL - OVERRIDE FINAL
+   No modifica la logica. Solo adapta el layout al viewport.
+========================================================= */
+html {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+body {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    overflow-x: hidden !important;
+}
+
+.top-header {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+.header-inner,
+.dashboard,
+.modulos,
+main {
+    width: 100% !important;
+    max-width: 1500px !important;
+    min-width: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.dashboard > *,
+#moduloInventario,
+#moduloXCC,
+.card,
+.form-card,
+.summary-card,
+.xcc-card,
+#movimientosCard {
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+img,
+canvas,
+video,
+iframe {
+    max-width: 100%;
+}
+
+@media (max-width: 850px) {
+    .top-header {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .header-inner {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 16px 14px !important;
+        grid-template-columns: minmax(0, 1fr) minmax(78px, 105px) !important;
+        gap: 10px !important;
+    }
+
+    .header-title,
+    .header-logo,
+    .header-date {
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .header-title strong,
+    .header-title div {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: clip !important;
+        white-space: nowrap !important;
+    }
+
+    .header-logo img {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+
+    .modulos {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 0 10px !important;
+        display: flex !important;
+    }
+
+    .modulo-btn {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        width: 50% !important;
+        max-width: 50% !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .dashboard {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 10px !important;
+        display: block !important;
+    }
+
+    .dashboard > #moduloInventario {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    #moduloInventario .form-card,
+    #moduloInventario .summary-card,
+    #moduloXCC .xcc-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 0 12px 0 !important;
+    }
+
+    #moduloXCC {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .form-grid,
+    .elemento-wrapper,
+    .elemento-input-row,
+    .estado-buttons,
+    .subsection-header,
+    .xcc-actions {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .elemento-input-row {
+        display: flex !important;
+    }
+
+    .elemento-input-row input {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+
+    .clear-element {
+        flex: 0 0 46px !important;
+    }
+
+    .estado-buttons {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .report-button,
+    .primary-button,
+    .xcc-actions .primary-button,
+    .xcc-actions .report-button {
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .table-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .inventory-table {
+        width: max-content !important;
+        max-width: none !important;
+    }
+
+    .inventory-table:not(.xcc-table) {
+        min-width: 720px !important;
+    }
+
+    .xcc-table {
+        min-width: 820px !important;
+    }
+
+    #movimientosCard {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    #listaMovimientos {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    #colaSincronizacion,
+    #estadoConexion {
+        max-width: calc(100vw - 20px) !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .header-inner {
+        padding: 14px 12px !important;
+        grid-template-columns: minmax(0, 1fr) minmax(72px, 92px) !important;
+        gap: 8px !important;
+    }
+
+    .header-title div {
+        font-size: clamp(12px, 3.5vw, 16px) !important;
+    }
+
+    .header-title strong {
+        font-size: clamp(28px, 8.8vw, 36px) !important;
+        line-height: .98 !important;
+    }
+
+    .header-logo {
+        height: 66px !important;
+    }
+
+    .header-logo img {
+        width: min(92px, 100%) !important;
+        max-height: 62px !important;
+    }
+
+    .header-date-main {
+        font-size: clamp(20px, 6.5vw, 25px) !important;
+    }
+
+    .header-date-label {
+        font-size: 11px !important;
+    }
+
+    .calendar-icon {
+        width: 42px !important;
+        height: 40px !important;
+        flex: 0 0 42px !important;
+    }
+
+    .card {
+        padding: 14px !important;
+    }
+
+    .section-header {
+        gap: 10px !important;
+    }
+
+    .section-header h2 {
+        font-size: 18px !important;
+    }
+
+    .section-header p {
+        font-size: 11px !important;
+    }
+
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        max-width: 100% !important;
+    }
+
+    .estado-btn {
+        font-size: 11px !important;
+    }
+
+    .modulos {
+        padding: 0 8px !important;
+    }
+
+    .modulo-btn {
+        font-size: 10px !important;
+        padding: 10px 6px !important;
+    }
+
+    #colaSincronizacion {
+        width: min(320px, calc(100vw - 16px)) !important;
+        right: 8px !important;
+        bottom: 56px !important;
+    }
+
+    #estadoConexion {
+        right: 8px !important;
+        bottom: 8px !important;
+    }
+}
+
+@media (max-width: 380px) {
+    .header-inner {
+        grid-template-columns: minmax(0, 1fr) 66px !important;
+    }
+
+    .header-logo img {
+        width: 66px !important;
+    }
+
+    .header-title strong {
+        font-size: 28px !important;
+    }
+
+    .header-title div {
+        font-size: 11px !important;
+    }
+
+    .dashboard {
+        padding: 8px !important;
+    }
+
+    .card {
+        padding: 12px !important;
+    }
+}
+
+/* =========================================================
+   ADAPTACION MOVIL REAL - SIN DESBORDE HORIZONTAL
+   ========================================================= */
+html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+img, canvas, svg, video {
+    max-width: 100%;
+}
+
+button, input, select, textarea {
+    max-width: 100%;
+}
+
+@media (max-width: 850px) {
+    .top-header,
+    .header-inner,
+    .modulos,
+    .dashboard {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .top-header {
+        overflow: hidden !important;
+    }
+
+    .header-inner {
+        margin: 0 !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+    }
+
+    .header-title,
+    .header-date,
+    .header-logo {
+        min-width: 0 !important;
+    }
+
+    .header-title div,
+    .header-title strong,
+    .header-date-main,
+    .header-date-label {
+        overflow-wrap: anywhere;
+        word-break: normal;
+    }
+
+    .dashboard {
+        display: block !important;
+        padding: 10px !important;
+    }
+
+    #moduloInventario,
+    #moduloXCC,
+    .card,
+    .form-card,
+    .summary-card,
+    .xcc-card,
+    #movimientosCard {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    #moduloInventario > .card,
+    #moduloXCC > .card {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    .form-grid,
+    .form-field,
+    .elemento-wrapper,
+    .elemento-input-row,
+    .elemento-input-row input,
+    .xcc-actions {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .elemento-input-row {
+        display: flex !important;
+        gap: 7px !important;
+    }
+
+    .elemento-input-row input {
+        flex: 1 1 auto !important;
+    }
+
+    .clear-element {
+        flex: 0 0 44px !important;
+        width: 44px !important;
+    }
+
+    .estado-buttons {
+        width: 100% !important;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    }
+
+    .estado-btn {
+        min-width: 0 !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    .primary-button,
+    .report-button,
+    .xcc-actions .primary-button,
+    .xcc-actions .report-button {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .secondary-stats,
+    .subsection-header {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .subsection-header {
+        align-items: stretch !important;
+    }
+
+    .table-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Inventario diario: la tabla puede desplazarse dentro de su propio contenedor. */
+    .inventory-table:not(.xcc-table) {
+        min-width: 660px !important;
+    }
+
+    /* XCC: convertir cada fila en una tarjeta compacta para que NO haya scroll horizontal. */
+    .xcc-table {
+        min-width: 0 !important;
+        width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+    }
+
+    .xcc-table thead {
+        display: none !important;
+    }
+
+    .xcc-table tbody,
+    .xcc-table tr,
+    .xcc-table td {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .xcc-table tr {
+        background: #fff !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+        margin: 0 0 10px !important;
+        padding: 9px !important;
+    }
+
+    .xcc-table td {
+        border: 0 !important;
+        border-bottom: 1px solid #edf2f6 !important;
+        padding: 8px 0 !important;
+        text-align: left !important;
+        font-size: 12px !important;
+    }
+
+    .xcc-table td:last-child {
+        border-bottom: 0 !important;
+    }
+
+    .xcc-table td::before {
+        display: block !important;
+        margin-bottom: 4px !important;
+        color: #71829a !important;
+        font-size: 9px !important;
+        font-weight: 900 !important;
+        letter-spacing: .6px !important;
+    }
+
+    .xcc-table td:nth-child(1)::before { content: "CLIENTE"; }
+    .xcc-table td:nth-child(2)::before { content: "ESTIBAS / DÍA"; }
+    .xcc-table td:nth-child(3)::before { content: "INVENTARIO ACTUAL"; }
+    .xcc-table td:nth-child(4)::before { content: "DÍAS CUBIERTOS"; }
+    .xcc-table td:nth-child(5)::before { content: "OBJETIVO"; }
+    .xcc-table td:nth-child(6)::before { content: "FALTANTE"; }
+
+    .xcc-table .xcc-input {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        height: 40px !important;
+        box-sizing: border-box !important;
+    }
+
+    .xcc-actions {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+
+    #listaMovimientos {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    .movimiento-item {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .header-inner {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(74px, 92px) !important;
+        grid-template-areas:
+            "title logo"
+            "date date" !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 14px 12px !important;
+    }
+
+    .header-title {
+        grid-area: title !important;
+        width: 100% !important;
+    }
+
+    .header-logo {
+        grid-area: logo !important;
+        width: 100% !important;
+        height: 72px !important;
+        border-left: 0 !important;
+    }
+
+    .header-date {
+        grid-area: date !important;
+        width: 100% !important;
+        padding-top: 9px !important;
+        border-top: 1px solid rgba(255,255,255,.18) !important;
+    }
+
+    .header-logo img {
+        width: 88px !important;
+        max-width: 100% !important;
+        max-height: 66px !important;
+    }
+
+    .header-title div {
+        font-size: clamp(12px, 3.4vw, 16px) !important;
+    }
+
+    .header-title strong {
+        font-size: clamp(28px, 8.5vw, 38px) !important;
+    }
+
+    .header-date-main {
+        font-size: clamp(20px, 6.2vw, 25px) !important;
+    }
+
+    .dashboard {
+        padding: 8px !important;
+    }
+
+    .card {
+        padding: 13px !important;
+        border-radius: 13px !important;
+    }
+
+    .section-header {
+        margin-bottom: 14px !important;
+    }
+
+    .section-header h2 {
+        font-size: 18px !important;
+    }
+
+    .section-header p {
+        font-size: 11px !important;
+    }
+
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        height: 46px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .form-field textarea {
+        height: auto !important;
+        min-height: 82px !important;
+    }
+
+    .estado-btn {
+        font-size: 12px !important;
+        padding: 0 7px !important;
+    }
+
+    .modulos {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+        padding: 0 8px !important;
+        box-sizing: border-box !important;
+    }
+
+    .modulo-btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 11px 5px !important;
+        font-size: 10px !important;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        min-width: 0 !important;
+    }
+
+    .stat-card {
+        min-width: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .report-modal {
+        padding: 7px !important;
+    }
+
+    .report-modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .report-preview {
+        margin: 0 8px 8px !important;
+        padding: 6px !important;
+    }
+
+    .download-report {
+        margin: 0 8px 10px !important;
+    }
+
+    #colaSincronizacion {
+        width: min(310px, calc(100vw - 16px)) !important;
+        right: 8px !important;
+        bottom: 54px !important;
+    }
+}
