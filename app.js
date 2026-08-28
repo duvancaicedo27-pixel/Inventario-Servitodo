@@ -568,8 +568,10 @@ function actualizarResumen(){
 function crearSeccionMovimientos(){
     if(document.getElementById("movimientosCard"))return;
 
+    const main=document.querySelector("main");
     const moduloInventario=document.getElementById("moduloInventario");
-    if(!moduloInventario)return;
+    const contenedor=moduloInventario||main;
+    if(!contenedor)return;
 
     const card=document.createElement("section");
     card.id="movimientosCard";
@@ -586,9 +588,10 @@ function crearSeccionMovimientos(){
         <div id="listaMovimientos"></div>
     `;
 
-    const resumen=moduloInventario.querySelector(".summary-card");
-    if(resumen)resumen.after(card);
-    else moduloInventario.appendChild(card);
+    const cards=contenedor.querySelectorAll(".card");
+
+    if(cards.length>=2)cards[cards.length-1].after(card);
+    else contenedor.appendChild(card);
 
     agregarEstilosMovimientos();
 }
