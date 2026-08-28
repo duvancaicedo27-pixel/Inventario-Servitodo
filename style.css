@@ -1129,3 +1129,67 @@ button{
     #moduloInventario .inventory-table th:nth-child(5),
     #moduloInventario .inventory-table td:nth-child(5){width:20%;}
 }
+
+/* =====================================================
+   AJUSTE EXCLUSIVO INVENTARIO DIARIO - MOBILE
+   La tabla debe ocupar exactamente el ancho disponible.
+   No modifica XCC ni la lógica de la aplicación.
+===================================================== */
+@media (max-width: 600px){
+    #moduloInventario .table-container{
+        width:100%;
+        max-width:100%;
+        overflow:hidden;
+    }
+
+    #moduloInventario .inventory-table{
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        table-layout:fixed;
+    }
+
+    #moduloInventario .inventory-table th,
+    #moduloInventario .inventory-table td{
+        padding:8px 4px;
+        overflow-wrap:anywhere;
+        word-break:break-word;
+    }
+
+    #moduloInventario .inventory-table thead th{
+        font-size:9px;
+        line-height:1.15;
+        padding:8px 3px;
+    }
+
+    #moduloInventario .inventory-table tbody td{
+        font-size:10px;
+        line-height:1.2;
+        padding:10px 4px;
+    }
+
+    /* Proporciones para las 5 columnas del inventario diario */
+    #moduloInventario .inventory-table th:nth-child(1),
+    #moduloInventario .inventory-table td:nth-child(1){width:27%;}
+
+    #moduloInventario .inventory-table th:nth-child(2),
+    #moduloInventario .inventory-table td:nth-child(2){width:23%;}
+
+    #moduloInventario .inventory-table th:nth-child(3),
+    #moduloInventario .inventory-table td:nth-child(3){width:16.5%;}
+
+    #moduloInventario .inventory-table th:nth-child(4),
+    #moduloInventario .inventory-table td:nth-child(4){width:16.5%;}
+
+    #moduloInventario .inventory-table th:nth-child(5),
+    #moduloInventario .inventory-table td:nth-child(5){width:17%;}
+
+    #moduloInventario .inventory-table tbody td:first-child,
+    #moduloInventario .inventory-table tbody td:nth-child(2){
+        text-align:left;
+    }
+
+    #moduloInventario .inventory-table .empty{
+        padding:20px 8px;
+    }
+}
