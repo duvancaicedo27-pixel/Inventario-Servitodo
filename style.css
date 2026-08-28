@@ -1295,3 +1295,44 @@ button{
 /* Restauración del botón Eliminar en Movimientos del día */
 .btn-eliminar-movimiento{display:inline-flex !important;align-items:center;justify-content:center;visibility:visible !important;opacity:1 !important;min-width:80px;}
 @media(max-width:800px){.btn-eliminar-movimiento{display:inline-flex !important;grid-column:4;min-width:100px;}}
+
+/* ===== AJUSTE FINAL: ESPACIO PARA MOÑO / PROCESO / SUMA TOTAL EN CELULAR ===== */
+@media (max-width: 600px){
+    #moduloInventario .inventory-table{
+        table-layout:fixed !important;
+        width:100% !important;
+        min-width:0 !important;
+    }
+
+    #moduloInventario .inventory-table col.col-cliente{width:25.5% !important;}
+    #moduloInventario .inventory-table col.col-elemento{width:22.5% !important;}
+    #moduloInventario .inventory-table col.col-mono,
+    #moduloInventario .inventory-table col.col-proceso,
+    #moduloInventario .inventory-table col.col-total{width:17.3333% !important;}
+
+    #moduloInventario .inventory-table thead tr:nth-child(2) th{
+        padding-left:6px !important;
+        padding-right:6px !important;
+        font-size:9px !important;
+        line-height:1.05 !important;
+        white-space:normal !important;
+        word-break:normal !important;
+        overflow-wrap:normal !important;
+    }
+
+    #moduloInventario .inventory-table thead .th-mono,
+    #moduloInventario .inventory-table thead .th-proceso,
+    #moduloInventario .inventory-table thead .th-total{
+        text-align:center !important;
+    }
+
+    #moduloInventario .inventory-table tbody td:nth-child(3),
+    #moduloInventario .inventory-table tbody td:nth-child(4),
+    #moduloInventario .inventory-table tbody td:nth-child(5){
+        padding-left:6px !important;
+        padding-right:6px !important;
+        white-space:nowrap !important;
+        word-break:normal !important;
+        overflow-wrap:normal !important;
+    }
+}
