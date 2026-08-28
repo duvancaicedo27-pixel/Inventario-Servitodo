@@ -260,125 +260,32 @@ async function actualizarEstadoConexion(){
         renderizarEstadoConexion();
     }catch(e){console.warn("No se pudo actualizar pendientes",e);}
 }
-const SYNC_BATCH_SIZE=20;
-const SYNC_MAX_ATTEMPTS=3;
-const SYNC_TIMEOUT_MS=15000;
-
-async function fetchJSONConReintento(url,options={},intentos=SYNC_MAX_ATTEMPTS){
-    let ultimoError=null;
-    for(let intento=1;intento<=intentos;intento++){
-        const controller=new AbortController();
-        const temporizador=setTimeout(()=>controller.abort(),SYNC_TIMEOUT_MS);
-        try{
-            const respuesta=await fetch(url,{...options,signal:controller.signal,cache:options.cache||"no-store"});
-            clearTimeout(temporizador);
-            if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
-            const resultado=await respuesta.json();
-            if(!resultado.ok)throw new Error(resultado.error||"Error de servidor");
-            return resultado;
-        }catch(error){
-            clearTimeout(temporizador);
-            ultimoError=error;
-            if(intento<intentos)await new Promise(r=>setTimeout(r,700*intento));
-        }
-    }
-    throw ultimoError||new Error("No se pudo conectar");
-}
-
-async function marcarOperacionInventarioSincronizada(op,resultado){
-    if(op.payload.accion==="eliminarMovimiento"){
-        const idx=registros.findIndex(r=>r.id===op.payload.localId);
-        if(idx>=0)registros.splice(idx,1);
-        await dbDelete("operaciones",op.id);
-        return;
-    }
-    const item=registros.find(r=>r.id===op.payload.localId);
-    if(item){
-        item.sincronizado=true;
-        if(resultado&&resultado.fila)item.fila=resultado.fila;
-        if(resultado&&resultado.idLocal)item.idLocal=resultado.idLocal;
-        await dbPut("movimientos",item);
-    }
-    await dbDelete("operaciones",op.id);
-}
-
-async function sincronizarAltasInventarioLote(ops){
-    if(!ops.length)return true;
-    const payloads=ops.map(op=>op.payload);
-    try{
-        const resultado=await fetchJSONConReintento(API_URL,{
-            method:"POST",
-            headers:{"Content-Type":"text/plain;charset=utf-8"},
-            body:JSON.stringify({accion:"guardarInventarioLote",registros:payloads})
-        });
-        const resultados=Array.isArray(resultado.resultados)?resultado.resultados:[];
-        const porId=new Map(resultados.map(x=>[x.localId,x]));
-        for(const op of ops){
-            const r=porId.get(op.payload.localId);
-            if(!r)throw new Error("El servidor no confirmó "+op.payload.localId);
-            await marcarOperacionInventarioSincronizada(op,r);
-        }
-        return true;
-    }catch(error){
-        console.warn("Lote de inventario no disponible, se usará sincronización individual:",error);
-        return false;
-    }
-}
-
-async function sincronizarOperacionInventarioIndividual(op){
-    const resultado=await fetchJSONConReintento(API_URL,{
-        method:"POST",
-        headers:{"Content-Type":"text/plain;charset=utf-8"},
-        body:JSON.stringify(op.payload)
-    });
-    await marcarOperacionInventarioSincronizada(op,resultado);
-}
-
 async function sincronizarPendientes(){
     if(!navigator.onLine||!dbOffline||sincronizando)return;
     sincronizando=true;
     try{
-        let ops=await dbAll("operaciones");
-        // Limpiar operaciones antiguas claramente corruptas: no tienen cliente, elemento ni cantidad.
-        const corruptas=ops.filter(op=>{
-            const p=op&&op.payload||{};
-            return p.accion!=="eliminarMovimiento" && p.accion!=="editarMovimiento" && !String(p.cliente||"").trim() && !String(p.elemento||"").trim() && !(Number(p.cantidad)||0);
-        });
-        for(const op of corruptas){await dbDelete("operaciones",op.id);}
-        if(corruptas.length)ops=ops.filter(op=>!corruptas.some(c=>c.id===op.id));
+        const ops=await dbAll("operaciones");
         detallePendientesInventario=ops;
         pendientesInventario=ops.length;
         renderizarEstadoConexion();
-
-        const altas=ops.filter(op=>op&&op.payload&&!op.payload.accion);
-        for(let i=0;i<altas.length;i+=SYNC_BATCH_SIZE){
-            const lote=altas.slice(i,i+SYNC_BATCH_SIZE);
-            if(!await sincronizarAltasInventarioLote(lote)){
-                for(const op of lote){
-                    try{
-                        await sincronizarOperacionInventarioIndividual(op);
-                    }catch(error){
-                        console.warn("Pendiente no sincronizado:",error);
-                        break;
-                    }
-                }
-            }
-        }
-
-        ops=await dbAll("operaciones");
-        const resto=ops.filter(op=>op&&op.payload&&op.payload.accion);
-        for(const op of resto){
+        for(const op of ops){
             try{
-                await sincronizarOperacionInventarioIndividual(op);
-            }catch(error){
-                console.warn("Pendiente no sincronizado:",error);
-                break;
-            }
+                const respuesta=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload),keepalive:true});
+                const resultado=await respuesta.json();
+                if(!resultado.ok)throw new Error(resultado.error||"Error de sincronización");
+                if(op.payload.accion==="eliminarMovimiento"){
+                    const idx=registros.findIndex(r=>r.id===op.payload.localId);
+                    if(idx>=0)registros.splice(idx,1);
+                }else{
+                    const item=registros.find(r=>r.id===op.payload.localId);
+                    if(item){item.sincronizado=true;item.fila=resultado.fila||item.fila;await dbPut("movimientos",item);}
+                }
+                await dbDelete("operaciones",op.id);
+                detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
+                pendientesInventario=detallePendientesInventario.length;
+                renderizarEstadoConexion();
+            }catch(e){console.warn("Pendiente no sincronizado",e);break;}
         }
-
-        const pendientesRestantes=await dbAll("operaciones");
-        detallePendientesInventario=pendientesRestantes;
-        pendientesInventario=pendientesRestantes.length;
     }finally{
         sincronizando=false;
         renderizarEstadoConexion();
@@ -397,11 +304,11 @@ function programarReintentoSincronizacion(){
         sincronizarXCCPendientes();
     },3000);
 }
-window.addEventListener("online",async()=>{
+window.addEventListener("online",()=>{
     renderizarEstadoConexion();
-    try{await sincronizarPendientes();}catch(error){console.warn(error);}
-    try{await sincronizarXCCPendientes();}catch(error){console.warn(error);}
-    await actualizarEstadoConexion();
+    sincronizarPendientes();
+    sincronizarXCCPendientes();
+    actualizarEstadoConexion();
 });
 window.addEventListener("offline",()=>{clearInterval(intervaloSincronizacion);intervaloSincronizacion=null;renderizarEstadoConexion();});
 
@@ -480,48 +387,40 @@ async function cargarInventario(){
             actualizarResumen();
             actualizarMovimientos();
         }
-        if(!navigator.onLine){return;}
-
-        const respuesta=await fetch(API_URL+"?accion=obtenerInventario&fecha="+encodeURIComponent(fechaTexto)+"&_="+Date.now(),{cache:"no-store"});
-        if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
-        const resultado=await respuesta.json();
-        if(!resultado.ok)throw new Error(resultado.error||"No se pudo cargar el inventario");
-
-        const servidor=Array.isArray(resultado.registros)?resultado.registros:[];
-        // Deduplicar lo que viene del servidor por el ID_LOCAL estable.
-        const vistos=new Set();
-        const servidorUnico=servidor.filter(s=>{
-            const idLocal=String(s.idLocal||"").trim();
-            const clave=idLocal?"id:"+idLocal:"fila:"+String(s.fila||"");
-            if(vistos.has(clave))return false;
-            vistos.add(clave);
-            return true;
-        }).map(r=>({
-            ...r,
-            id: String(r.idLocal||"").trim() || generarIdLocal("srv"),
-            idLocal: String(r.idLocal||"").trim(),
-            sincronizado:true
-        }));
-
-        const pendientes=registros.filter(r=>r&&r.sincronizado===false);
-        const fusion=[...servidorUnico];
-        pendientes.forEach(p=>{
-            if(!fusion.some(s=>
-                (s.idLocal&&p.idLocal&&s.idLocal===p.idLocal) ||
-                (s.fila&&p.fila&&Number(s.fila)===Number(p.fila)) ||
-                (s.id&&p.id&&s.id===p.id)
-            )) fusion.push(p);
-        });
-        registros=fusion;
-
-        for(const r of servidorUnico){await dbPut("movimientos",r);}
-        actualizarResumen();
-        actualizarMovimientos();
+        const actualizarRemoto=async()=>{
+            if(!navigator.onLine)return;
+            try{
+                const respuesta=await fetch(API_URL+"?accion=obtenerInventario&fecha="+encodeURIComponent(fechaTexto)+"&_="+Date.now(),{cache:"no-store"});
+                if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
+                const resultado=await respuesta.json();
+                if(!resultado.ok)throw new Error(resultado.error);
+                const servidor=resultado.registros||[];
+                const pendientes=registros.filter(r=>r.sincronizado===false);
+                const fusion=[...servidor];
+                pendientes.forEach(p=>{if(!fusion.some(s=>(s.fila&&p.fila&&s.fila===p.fila)||(s.id&&p.id&&s.id===p.id)))fusion.push(p);});
+                registros=fusion;
+                for(const r of servidor){
+                    r.sincronizado=true;
+                    if(!r.id)r.id=generarIdLocal("srv");
+                    await dbPut("movimientos",r);
+                }
+                actualizarResumen();
+                actualizarMovimientos();
+                sincronizarPendientes();
+            }catch(error){
+                console.warn("No se pudo actualizar inventario remoto:",error);
+                if(!localesHoy.length)mostrarMensaje("❌ No se pudo cargar el inventario","error");
+            }
+        };
+        if(navigator.onLine){
+            if(localesHoy.length)actualizarRemoto();
+            else await actualizarRemoto();
+        }
     }catch(error){
-        console.warn("No se pudo actualizar inventario remoto:",error);
+        console.error(error);
         actualizarResumen();
         actualizarMovimientos();
-        if(navigator.onLine)mostrarMensaje("❌ No se pudo actualizar el inventario. Se conserva lo guardado localmente.","error");
+        if(navigator.onLine)mostrarMensaje("❌ No se pudo cargar el inventario","error");
     }
 }
 
@@ -643,9 +542,8 @@ function actualizarResumen(){
 function crearSeccionMovimientos(){
     if(document.getElementById("movimientosCard"))return;
 
-    // Los movimientos pertenecen exclusivamente a Inventario Diario.
-    const moduloInventario=document.getElementById("moduloInventario");
-    if(!moduloInventario)return;
+    const main=document.querySelector("main");
+    if(!main)return;
 
     const card=document.createElement("section");
     card.id="movimientosCard";
@@ -662,11 +560,14 @@ function crearSeccionMovimientos(){
         <div id="listaMovimientos"></div>
     `;
 
-    // Siempre queda dentro del módulo Inventario Diario, después de su resumen.
-    moduloInventario.appendChild(card);
+    const cards=main.querySelectorAll(".card");
+
+    if(cards.length>=2)cards[cards.length-1].after(card);
+    else main.appendChild(card);
 
     agregarEstilosMovimientos();
 }
+
 function agregarEstilosMovimientos(){
     if(document.getElementById("estilosMovimientos"))return;
 
@@ -756,7 +657,7 @@ async function editarMovimiento(registro){
     if(!dbOffline)await abrirDBOffline();
     registro.cantidad=cantidad;registro.estado=estado==="MONO"?"MOÑO":"PROCESO";registro.notas=nuevasNotas;registro.sincronizado=false;
     await dbPut("movimientos",registro);
-    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"editarMovimiento",fila:Number(registro.fila)||null,localId:String(registro.idLocal||registro.id||""),cliente:registro.cliente,elemento:registro.elemento,cantidad,estado:registro.estado,notas:nuevasNotas}});
+    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"editarMovimiento",fila:Number(registro.fila)||null,localId:registro.id,cliente:registro.cliente,elemento:registro.elemento,cantidad,estado:registro.estado,notas:nuevasNotas}});
     actualizarResumen();actualizarMovimientos();actualizarEstadoConexion();mostrarMensaje(navigator.onLine?"✓ Cambio guardado. Sincronizando...":"✓ Cambio guardado sin conexión","ok");
     if(navigator.onLine)sincronizarPendientes();
 }
@@ -766,7 +667,7 @@ async function eliminarMovimiento(registro){
     if(!dbOffline)await abrirDBOffline();
     registros=registros.filter(r=>r.id!==registro.id);
     await dbDelete("movimientos",registro.id);
-    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"eliminarMovimiento",fila:Number(registro.fila)||null,localId:String(registro.idLocal||registro.id||"")}});
+    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"eliminarMovimiento",fila:Number(registro.fila)||null,localId:registro.id}});
     actualizarResumen();actualizarMovimientos();actualizarEstadoConexion();mostrarMensaje(navigator.onLine?"✓ Eliminado. Sincronizando...":"✓ Eliminado sin conexión","ok");
     if(navigator.onLine)sincronizarPendientes();
 }
@@ -1858,267 +1759,7 @@ async function sincronizarXCCPendientes(){
         programarReintentoSincronizacion();
     }
 }
-async function generarReporteXCC(){
-    const momento=new Date();
-    const fechaReporte=momento.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
-    const horaReporte=momento.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-
-    if(!logoServitodo.complete){
-        try{await Promise.race([new Promise(resolve=>{logoServitodo.onload=resolve;logoServitodo.onerror=resolve;}),new Promise(resolve=>setTimeout(resolve,2000))]);}catch(e){}
-    }
-
-    const filas=Array.isArray(datosXCC)?datosXCC:[];
-    const ancho=1200;
-    const headerH=112;
-    const tablaY=146;
-    const headerTablaH=58;
-    const filaH=58;
-    const espacioFinal=14;
-    const footerH=116;
-    const margen=14;
-    const tablaW=ancho-(margen*2);
-    const alto=14+headerH+20+headerTablaH+(filas.length*filaH)+(filas.length?14:0)+10+footerH+18;
-
-    const canvas=document.createElement("canvas");
-    canvas.width=ancho;
-    canvas.height=alto;
-    const ctx=canvas.getContext("2d");
-
-    const azul="#102b4e";
-    const azulTexto="#11253f";
-    const borde="#c8d0d8";
-    const grisClaro="#f5f6f8";
-    const blanco="#ffffff";
-    const grisTexto="#6f7d8c";
-    const naranja="#bd7c12";
-
-    ctx.fillStyle=blanco;
-    ctx.fillRect(0,0,ancho,alto);
-
-    // =================================================
-    // ENCABEZADO — MISMO DISEÑO DEL INVENTARIO DIARIO
-    // =================================================
-    const headerX=margen;
-    const headerY=14;
-    const headerW=tablaW;
-
-    ctx.fillStyle=azul;
-    ctx.fillRect(headerX,headerY,headerW,headerH);
-
-    const bloqueFecha=330;
-    const bloqueLogo=330;
-
-    ctx.strokeStyle="rgba(255,255,255,.5)";
-    ctx.lineWidth=2;
-
-    ctx.beginPath();
-    ctx.moveTo(headerX+bloqueFecha,headerY);
-    ctx.lineTo(headerX+bloqueFecha,headerY+headerH);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(headerX+headerW-bloqueLogo,headerY);
-    ctx.lineTo(headerX+headerW-bloqueLogo,headerY+headerH);
-    ctx.stroke();
-
-    // CALENDARIO
-    const calX=50;
-    const calY=43;
-    ctx.strokeStyle="#c7d0db";
-    ctx.lineWidth=4;
-    ctx.strokeRect(calX,calY,34,31);
-    ctx.beginPath();
-    ctx.moveTo(calX+7,calY-7);ctx.lineTo(calX+7,calY+4);
-    ctx.moveTo(calX+27,calY-7);ctx.lineTo(calX+27,calY+4);
-    ctx.stroke();
-    ctx.lineWidth=2;
-    ctx.beginPath();
-    for(let i=0;i<3;i++){
-        ctx.moveTo(calX+8,calY+11+i*7);
-        ctx.lineTo(calX+29,calY+11+i*7);
-    }
-    ctx.stroke();
-
-    ctx.fillStyle=blanco;
-    ctx.textAlign="left";
-    ctx.font="bold 34px Arial";
-    ctx.fillText(fechaReporte.replace(/\//g,"-"),105,65);
-    ctx.font="bold 18px Arial";
-    ctx.fillText("Fecha del inventario",106,91);
-
-    // TITULO CENTRAL
-    const centroX=headerX+bloqueFecha+26;
-    ctx.fillStyle=blanco;
-    ctx.font="bold 22px Arial";
-    ctx.fillText("INVENTARIO DIARIO",centroX,48);
-    ctx.font="bold 58px Arial";
-    ctx.fillText("SERVITODO",centroX,99);
-
-    // SUBTITULO XCC DISCRETO
-    ctx.font="bold 16px Arial";
-    ctx.fillText("ESTIBAS XCC",centroX+255,48);
-
-    // LOGO
-    if(logoServitodo.complete&&logoServitodo.naturalWidth>0){
-        const areaX=headerX+headerW-bloqueLogo;
-        const areaY=headerY;
-        const areaW=bloqueLogo;
-        const areaH=headerH;
-        const maxW=205;
-        const maxH=96;
-        let logoW=logoServitodo.naturalWidth;
-        let logoH=logoServitodo.naturalHeight;
-        const escala=Math.min(maxW/logoW,maxH/logoH);
-        logoW*=escala;logoH*=escala;
-        const logoX=areaX+(areaW-logoW)/2;
-        const logoY=areaY+(areaH-logoH)/2;
-        ctx.drawImage(logoServitodo,logoX,logoY,logoW,logoH);
-    }
-
-    // =================================================
-    // TABLA XCC — MISMA ESTRUCTURA VISUAL
-    // =================================================
-    const columnas=[
-        {titulo:"CLIENTE",base:310,align:"left"},
-        {titulo:"ESTIBAS/DÍA",base:180,align:"center"},
-        {titulo:"INVENTARIO ACTUAL",base:220,align:"center"},
-        {titulo:"DÍAS CUBIERTOS",base:190,align:"center"},
-        {titulo:"OBJETIVO",base:190,align:"center"},
-        {titulo:"FALTANTE",base:150,align:"center"}
-    ];
-    const baseTotal=columnas.reduce((s,c)=>s+c.base,0);
-    const escala=tablaW/baseTotal;
-    const anchos=columnas.map(c=>c.base*escala);
-    const xs=[];
-    let cursor=margen;
-    for(const w of anchos){xs.push(cursor);cursor+=w;}
-
-    ctx.fillStyle=azul;
-    ctx.fillRect(margen,tablaY,tablaW,headerTablaH);
-    ctx.strokeStyle=borde;
-    ctx.lineWidth=1;
-    ctx.strokeRect(margen,tablaY,tablaW,headerTablaH);
-
-    ctx.fillStyle=blanco;
-    ctx.font="bold 18px Arial";
-    ctx.textAlign="center";
-    columnas.forEach((c,i)=>{
-        const cx=xs[i]+anchos[i]/2;
-        ctx.fillText(c.titulo,cx,tablaY+35);
-    });
-
-    let y=tablaY+headerTablaH;
-    filas.forEach((f,i)=>{
-        ctx.fillStyle=i%2===0?blanco:"#fafbfc";
-        ctx.fillRect(margen,y,tablaW,filaH);
-        ctx.strokeStyle=borde;
-        ctx.strokeRect(margen,y,tablaW,filaH);
-
-        const dias=f.estibasDia>0?(Number(f.inventarioActual)||0)/Number(f.estibasDia):0;
-        const faltante=(Number(f.objetivo)||0)-(Number(f.inventarioActual)||0);
-        const valores=[
-            String(f.cliente||""),
-            formatear(f.estibasDia),
-            formatear(f.inventarioActual),
-            dias.toFixed(1),
-            formatear(f.objetivo),
-            formatear(faltante)
-        ];
-
-        valores.forEach((v,j)=>{
-            ctx.textAlign=j===0?"left":"center";
-            ctx.fillStyle=j===5&&faltante>0?naranja:azulTexto;
-            ctx.font="bold 18px Arial";
-            const tx=j===0?xs[j]+20:xs[j]+anchos[j]/2;
-            textoAjustado(ctx,v,tx,y+36,j===0?anchos[j]-40:anchos[j]-20);
-        });
-        y+=filaH;
-    });
-
-    // LINEAS VERTICALES
-    ctx.strokeStyle=borde;
-    for(let i=1;i<xs.length;i++){
-        ctx.beginPath();
-        ctx.moveTo(xs[i],tablaY);
-        ctx.lineTo(xs[i],y);
-        ctx.stroke();
-    }
-
-    ctx.strokeStyle=borde;
-    ctx.lineWidth=2;
-    ctx.strokeRect(margen,tablaY,tablaW,y-tablaY);
-
-    // =================================================
-    // PIE — MISMO DISEÑO DEL INVENTARIO DIARIO
-    // =================================================
-    const footerY=y+10;
-    const footerW=tablaW;
-    const f1=margen;
-    const f2=margen+footerW/3;
-    const f3=margen+(footerW/3)*2;
-
-    ctx.fillStyle=blanco;
-    ctx.fillRect(f1,footerY,footerW,footerH);
-    ctx.strokeStyle=borde;
-    ctx.lineWidth=1;
-    ctx.strokeRect(f1,footerY,footerW,footerH);
-
-    ctx.beginPath();
-    ctx.moveTo(f2,footerY);ctx.lineTo(f2,footerY+footerH);
-    ctx.moveTo(f3,footerY);ctx.lineTo(f3,footerY+footerH);
-    ctx.stroke();
-
-    // RELOJ
-    ctx.strokeStyle="#738292";
-    ctx.lineWidth=3;
-    ctx.beginPath();ctx.arc(f1+40,footerY+44,18,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+40,footerY+31);
-    ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+49,footerY+49);
-    ctx.stroke();
-    ctx.fillStyle=grisTexto;
-    ctx.font="15px Arial";
-    ctx.textAlign="left";
-    ctx.fillText("Generado el:",f1+73,footerY+32);
-    ctx.fillStyle=azulTexto;
-    ctx.font="bold 18px Arial";
-    ctx.fillText(fechaReporte+" "+horaReporte,f1+73,footerY+62);
-
-    // PERSONA
-    const personaX=f2+42;
-    ctx.strokeStyle="#738292";
-    ctx.lineWidth=3;
-    ctx.beginPath();ctx.arc(personaX,footerY+34,8,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.arc(personaX,footerY+68,17,Math.PI,0);ctx.stroke();
-    ctx.fillStyle=grisTexto;
-    ctx.font="15px Arial";
-    ctx.fillText("Elaborado por:",f2+73,footerY+32);
-    ctx.fillStyle=azulTexto;
-    ctx.font="bold 18px Arial";
-    ctx.fillText("Duvan C",f2+73,footerY+62);
-
-    // DOCUMENTO
-    const docX=f3+40;
-    ctx.strokeStyle="#738292";
-    ctx.lineWidth=3;
-    ctx.strokeRect(docX-13,footerY+24,25,34);
-    ctx.beginPath();
-    ctx.moveTo(docX-6,footerY+34);ctx.lineTo(docX+6,footerY+34);
-    ctx.moveTo(docX-6,footerY+41);ctx.lineTo(docX+6,footerY+41);
-    ctx.moveTo(docX-6,footerY+48);ctx.lineTo(docX+6,footerY+48);
-    ctx.stroke();
-    ctx.fillStyle=grisTexto;
-    ctx.font="15px Arial";
-    ctx.fillText("Inventario de estibas XCC",f3+73,footerY+32);
-    ctx.fillStyle=azulTexto;
-    ctx.font="bold 18px Arial";
-    ctx.fillText("Página 1 de 1",f3+73,footerY+62);
-
-    reporteXCCData=canvas.toDataURL("image/png");
-    const img=document.getElementById("imagenReporteXCC");
-    if(img)img.src=reporteXCCData;
-    document.getElementById("modalReporteXCC")?.classList.add("visible");
-}
+function generarReporteXCC(){const fecha=new Date(),ft=fecha.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"}),ht=fecha.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}),canvas=document.createElement("canvas"),w=1400,h=220+datosXCC.length*60;canvas.width=w;canvas.height=h;const c=canvas.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,w,h);c.fillStyle="#102b4e";c.fillRect(0,0,w,120);c.fillStyle="#fff";c.font="bold 34px Arial";c.fillText("INVENTARIO DIARIO ESTIBAS XCC",42,55);c.font="bold 20px Arial";c.fillText(ft+"  |  "+ht,42,90);c.fillStyle="#102b4e";c.font="bold 17px Arial";["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"].forEach((x,i)=>c.fillText(x,[40,330,500,730,930,1100][i],160));c.font="16px Arial";datosXCC.forEach((f,i)=>{const y=195+i*60,d=f.estibasDia>0?f.inventarioActual/f.estibasDia:0,x=f.objetivo-f.inventarioActual;[f.cliente,formatear(f.estibasDia),formatear(f.inventarioActual),d.toFixed(1),formatear(f.objetivo),formatear(x)].forEach((v,j)=>c.fillText(String(v),[40,330,500,730,930,1100][j],y));});reporteXCCData=canvas.toDataURL("image/png");const img=document.getElementById("imagenReporteXCC");if(img)img.src=reporteXCCData;document.getElementById("modalReporteXCC")?.classList.add("visible");}
 function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();}
 prepararEventosXCC();
 iniciarAplicacion();
