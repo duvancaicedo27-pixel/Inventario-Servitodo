@@ -200,37 +200,38 @@ async function limpiarOperacionesInvalidas(){
     if(!dbOffline)return;
     try{
         const operaciones=await dbAll("operaciones");
+        const movimientosLocales=await dbAll("movimientos");
+        const mapaMovimientos=new Map(movimientosLocales.map(r=>[String(r.id),r]));
         for(const op of operaciones){
             const p=op?.payload||{};
-            const accion=p.accion||"";
-            // Solo limpiamos operaciones de registro normal claramente corruptas.
-            // Las operaciones de editar/eliminar/XCC se conservan.
+            const accion=String(p.accion||"");
             if(accion==="registrarInventarioXCC")continue;
+
             if(accion==="eliminarMovimiento") {
-                // Una eliminación solo puede enviarse al servidor si existe una fila real de Sheets.
-                // Si no hay fila (movimiento nunca sincronizado) o el movimiento local ya no existe,
-                // la operación de eliminación quedó huérfana y no debe bloquear la cola.
                 const fila=Number(p.fila)||0;
                 const localId=String(p.localId||"");
-                const movimientoLocal=localId?registros.find(r=>r.id===localId):null;
-                if(fila<2 && !movimientoLocal)await dbDelete("operaciones",op.id);
-                else if(fila<2 && movimientoLocal && movimientoLocal.sincronizado===false)await dbDelete("operaciones",op.id);
+                const movimientoLocal=localId?mapaMovimientos.get(localId):null;
+                const necesitaRemoto=fila>=2;
+                const esEliminacionLocalValida=!!movimientoLocal && movimientoLocal.sincronizado===false;
+                if(!necesitaRemoto && !esEliminacionLocalValida){
+                    await dbDelete("operaciones",op.id);
+                }
                 continue;
             }
-            if(accion==="editarMovimiento"){
-                const cliente=String(p.cliente||"").trim();
-                const elemento=String(p.elemento||"").trim();
-                const cantidad=Number(p.cantidad);
-                const estado=normalizarTexto(p.estado);
-                const valida=!!p.localId&&cliente&&elemento&&cantidad>0&&(estado==="MONO"||estado==="PROCESO");
-                if(!valida)await dbDelete("operaciones",op.id);
-                continue;
-            }
+
             const cliente=String(p.cliente||"").trim();
             const elemento=String(p.elemento||"").trim();
             const cantidad=Number(p.cantidad);
             const estado=normalizarTexto(p.estado);
-            const valida=cliente&&elemento&&cantidad>0&&(estado==="MONO"||estado==="PROCESO");
+            const movimientoLocal=p.localId?mapaMovimientos.get(String(p.localId)):null;
+
+            if(accion==="editarMovimiento") {
+                const valida=!!movimientoLocal&&!!cliente&&!!elemento&&cantidad>0&&(estado==="MONO"||estado==="PROCESO");
+                if(!valida)await dbDelete("operaciones",op.id);
+                continue;
+            }
+
+            const valida=!!movimientoLocal&&!!cliente&&!!elemento&&cantidad>0&&(estado==="MONO"||estado==="PROCESO");
             if(!valida)await dbDelete("operaciones",op.id);
         }
     }catch(error){
@@ -298,6 +299,7 @@ async function actualizarEstadoConexion(){
     renderizarEstadoConexion();
     if(!dbOffline)return;
     try{
+        await limpiarOperacionesInvalidas();
         const [ops,opsXcc]=await Promise.all([dbAll("operaciones"),dbAll("operacionesXCC")]);
         pendientesInventario=ops.length;
         pendientesXCC=opsXcc.length;
@@ -310,6 +312,7 @@ async function sincronizarPendientes(){
     if(!navigator.onLine||!dbOffline||sincronizando)return;
     sincronizando=true;
     try{
+        await limpiarOperacionesInvalidas();
         const ops=await dbAll("operaciones");
         detallePendientesInventario=ops;
         pendientesInventario=ops.length;
@@ -433,6 +436,7 @@ async function cargarInventario(){
             actualizarResumen();
             actualizarMovimientos();
         }
+        await limpiarOperacionesInvalidas();
         const actualizarRemoto=async()=>{
             if(!navigator.onLine)return;
             try{
