@@ -268,23 +268,123 @@ async function sincronizarPendientes(){
         detallePendientesInventario=ops;
         pendientesInventario=ops.length;
         renderizarEstadoConexion();
-        for(const op of ops){
+
+        const completarOperacion=async(op,resultado)=>{
+            const payload=op.payload||{};
+            if(payload.accion==="eliminarMovimiento"){
+                const idx=registros.findIndex(r=>r.id===payload.localId);
+                if(idx>=0)registros.splice(idx,1);
+            }else if(payload.accion==="editarMovimiento"){
+                const item=registros.find(r=>r.id===payload.localId);
+                if(item){
+                    item.cantidad=Number(payload.cantidad)||0;
+                    item.estado=payload.estado||item.estado;
+                    item.notas=payload.notas||"";
+                    item.sincronizado=true;
+                    item.fila=resultado.fila||item.fila;
+                    await dbPut("movimientos",item);
+                }
+            }else{
+                const item=registros.find(r=>r.id===payload.localId);
+                if(item){
+                    item.sincronizado=true;
+                    item.fila=resultado.fila||item.fila;
+                    await dbPut("movimientos",item);
+                }
+            }
+            await dbDelete("operaciones",op.id);
+        };
+
+        // Solo los registros nuevos pueden viajar por el endpoint por lote.
+        // Editar/eliminar deben seguir su operación específica para no convertirlas en altas nuevas.
+        const altas=ops.filter(op=>{
+            const accion=(op.payload||{}).accion;
+            return accion!=="eliminarMovimiento"&&accion!=="editarMovimiento";
+        });
+        const mutaciones=ops.filter(op=>{
+            const accion=(op.payload||{}).accion;
+            return accion==="eliminarMovimiento"||accion==="editarMovimiento";
+        });
+
+        for(let i=0;i<altas.length;i+=20){
+            if(!navigator.onLine)break;
+            const lote=altas.slice(i,i+20);
+            let confirmadas=[];
             try{
-                const respuesta=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload),keepalive:true});
+                const respuesta=await fetch(API_URL,{
+                    method:"POST",
+                    headers:{"Content-Type":"text/plain;charset=utf-8"},
+                    body:JSON.stringify({accion:"guardarInventarioLote",registros:lote.map(op=>op.payload||{})}),
+                    keepalive:true
+                });
+                const resultado=await respuesta.json();
+                if(!resultado.ok)throw new Error(resultado.error||"Error de sincronización por lote");
+                const mapa=new Map((resultado.resultados||[]).map(r=>[String(r.localId||r.idLocal||""),r]));
+                for(const op of lote){
+                    const id=String((op.payload||{}).localId||(op.payload||{}).id||"");
+                    const r=mapa.get(id);
+                    if(r&&r.fila)confirmadas.push([op,r]);
+                }
+                if(confirmadas.length){
+                    await Promise.all(confirmadas.map(([op,r])=>completarOperacion(op,r)));
+                    const ids=new Set(confirmadas.map(([op])=>op.id));
+                    detallePendientesInventario=detallePendientesInventario.filter(x=>!ids.has(x.id));
+                    pendientesInventario=detallePendientesInventario.length;
+                    renderizarEstadoConexion();
+                }
+            }catch(e){
+                console.warn("Lote de inventario no sincronizado:",e);
+                // Respaldo individual: continúa con todos, nunca bloquea la cola completa.
+                for(let j=0;j<lote.length;j+=3){
+                    const grupo=lote.slice(j,j+3).filter(op=>detallePendientesInventario.some(x=>x.id===op.id));
+                    await Promise.all(grupo.map(async op=>{
+                        try{
+                            const respuesta=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload||{}),keepalive:true});
+                            const resultado=await respuesta.json();
+                            if(!resultado.ok)throw new Error(resultado.error||"Error de sincronización");
+                            await completarOperacion(op,resultado);
+                            detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
+                            pendientesInventario=detallePendientesInventario.length;
+                        }catch(err){console.warn("Pendiente individual no sincronizado:",err);}
+                    }));
+                    renderizarEstadoConexion();
+                    if(!navigator.onLine)break;
+                }
+            }
+            if(confirmadas.length<lote.length){
+                // Los no confirmados por el lote se intentan individualmente aunque el lote haya respondido.
+                const resto=lote.filter(op=>detallePendientesInventario.some(x=>x.id===op.id));
+                for(let j=0;j<resto.length;j+=3){
+                    const grupo=resto.slice(j,j+3);
+                    await Promise.all(grupo.map(async op=>{
+                        try{
+                            const respuesta=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload||{}),keepalive:true});
+                            const resultado=await respuesta.json();
+                            if(!resultado.ok)throw new Error(resultado.error||"Error de sincronización");
+                            await completarOperacion(op,resultado);
+                            detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
+                            pendientesInventario=detallePendientesInventario.length;
+                        }catch(err){console.warn("Pendiente individual no sincronizado:",err);}
+                    }));
+                    renderizarEstadoConexion();
+                    if(!navigator.onLine)break;
+                }
+            }
+        }
+
+        // Editar/eliminar se procesan después de las altas para conservar el orden lógico de cambios.
+        for(const op of mutaciones){
+            if(!navigator.onLine)break;
+            if(!detallePendientesInventario.some(x=>x.id===op.id))continue;
+            try{
+                const respuesta=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload||{}),keepalive:true});
                 const resultado=await respuesta.json();
                 if(!resultado.ok)throw new Error(resultado.error||"Error de sincronización");
-                if(op.payload.accion==="eliminarMovimiento"){
-                    const idx=registros.findIndex(r=>r.id===op.payload.localId);
-                    if(idx>=0)registros.splice(idx,1);
-                }else{
-                    const item=registros.find(r=>r.id===op.payload.localId);
-                    if(item){item.sincronizado=true;item.fila=resultado.fila||item.fila;await dbPut("movimientos",item);}
-                }
-                await dbDelete("operaciones",op.id);
+                await completarOperacion(op,resultado);
                 detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
                 pendientesInventario=detallePendientesInventario.length;
                 renderizarEstadoConexion();
-            }catch(e){console.warn("Pendiente no sincronizado",e);break;}
+            }catch(e){console.warn("Mutación no sincronizada:",e);}
         }
     }finally{
         sincronizando=false;
@@ -542,8 +642,8 @@ function actualizarResumen(){
 function crearSeccionMovimientos(){
     if(document.getElementById("movimientosCard"))return;
 
-    const main=document.querySelector("main");
-    if(!main)return;
+    const contenedor=document.getElementById("moduloInventario");
+    if(!contenedor)return;
 
     const card=document.createElement("section");
     card.id="movimientosCard";
@@ -560,10 +660,10 @@ function crearSeccionMovimientos(){
         <div id="listaMovimientos"></div>
     `;
 
-    const cards=main.querySelectorAll(".card");
+    const cards=contenedor.querySelectorAll(":scope > .card");
 
     if(cards.length>=2)cards[cards.length-1].after(card);
-    else main.appendChild(card);
+    else contenedor.appendChild(card);
 
     agregarEstilosMovimientos();
 }
@@ -1715,13 +1815,17 @@ async function guardarXCCLocal(){
     const ahora=Date.now(),fecha=fechaActualXCC();
     const borrador=datosXCC.map(f=>({cliente:f.cliente,estibasDia:Number(f.estibasDia)||0,inventarioActual:Number(f.inventarioActual)||0,objetivo:Number(f.objetivo)||0,ultimoId:f.ultimoId||"",ultimaFecha:f.ultimaFecha||""}));
     localStorage.setItem("servitodo_xcc_ultimaEdicion",JSON.stringify(borrador));
+    const items=[];
+    const operaciones=[];
     for(const f of datosXCC){
         const r={id:generarIdLocal("xcc"),fecha,cliente:f.cliente,estibasDia:Number(f.estibasDia)||0,inventarioActual:Number(f.inventarioActual)||0,objetivo:Number(f.objetivo)||0,diasCubiertos:f.estibasDia>0?(Number(f.inventarioActual)||0)/f.estibasDia:0,faltante:(Number(f.objetivo)||0)-(Number(f.inventarioActual)||0),creado:ahora,sincronizado:false};
         const operacionXCC={id:generarIdLocal("opxcc"),payload:{...r,accion:"registrarInventarioXCC"}};
-        await dbPutMultiple([{store:"xcc",value:r},{store:"operacionesXCC",value:operacionXCC}]);
+        items.push({store:"xcc",value:r});
+        operaciones.push({store:"operacionesXCC",value:operacionXCC});
         detallePendientesXCC.push(operacionXCC);
-        pendientesXCC++;
     }
+    await dbPutMultiple(items.concat(operaciones));
+    pendientesXCC=detallePendientesXCC.length;
     renderizarXCC();
     actualizarEstadoConexion();
     mensajeXCC(navigator.onLine?"✓ Guardado local. Sincronizando...":"✓ Guardado sin conexión. Quedó pendiente de sincronizar.","ok");
@@ -1735,23 +1839,26 @@ async function sincronizarXCCPendientes(){
         detallePendientesXCC=ops;
         pendientesXCC=ops.length;
         renderizarEstadoConexion();
-        for(const op of ops){
-            try{
-                const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload),keepalive:true});
-                const d=await r.json();
-                if(!d.ok)throw new Error(d.error||"Error XCC");
-                const registro=op.payload;
-                registro.sincronizado=true;
-                if(d.fila)registro.fila=d.fila;
-                await dbPut("xcc",registro);
-                await dbDelete("operacionesXCC",op.id);
-                detallePendientesXCC=detallePendientesXCC.filter(x=>x.id!==op.id);
-                pendientesXCC=detallePendientesXCC.length;
-                renderizarEstadoConexion();
-            }catch(e){
-                console.warn("XCC pendiente",e);
-                break;
-            }
+        for(let i=0;i<ops.length;i+=3){
+            const grupo=ops.slice(i,i+3);
+            await Promise.all(grupo.map(async op=>{
+                try{
+                    const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload),keepalive:true});
+                    const d=await r.json();
+                    if(!d.ok)throw new Error(d.error||"Error XCC");
+                    const registro=op.payload;
+                    registro.sincronizado=true;
+                    if(d.fila)registro.fila=d.fila;
+                    await dbPut("xcc",registro);
+                    await dbDelete("operacionesXCC",op.id);
+                    detallePendientesXCC=detallePendientesXCC.filter(x=>x.id!==op.id);
+                    pendientesXCC=detallePendientesXCC.length;
+                }catch(e){
+                    console.warn("XCC pendiente no sincronizado:",e);
+                }
+            }));
+            renderizarEstadoConexion();
+            if(!navigator.onLine)break;
         }
         if(pendientesXCC===0)localStorage.removeItem("servitodo_xcc_ultimaEdicion");
     }finally{
@@ -1759,7 +1866,73 @@ async function sincronizarXCCPendientes(){
         programarReintentoSincronizacion();
     }
 }
-function generarReporteXCC(){const fecha=new Date(),ft=fecha.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"}),ht=fecha.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}),canvas=document.createElement("canvas"),w=1400,h=220+datosXCC.length*60;canvas.width=w;canvas.height=h;const c=canvas.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,w,h);c.fillStyle="#102b4e";c.fillRect(0,0,w,120);c.fillStyle="#fff";c.font="bold 34px Arial";c.fillText("INVENTARIO DIARIO ESTIBAS XCC",42,55);c.font="bold 20px Arial";c.fillText(ft+"  |  "+ht,42,90);c.fillStyle="#102b4e";c.font="bold 17px Arial";["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"].forEach((x,i)=>c.fillText(x,[40,330,500,730,930,1100][i],160));c.font="16px Arial";datosXCC.forEach((f,i)=>{const y=195+i*60,d=f.estibasDia>0?f.inventarioActual/f.estibasDia:0,x=f.objetivo-f.inventarioActual;[f.cliente,formatear(f.estibasDia),formatear(f.inventarioActual),d.toFixed(1),formatear(f.objetivo),formatear(x)].forEach((v,j)=>c.fillText(String(v),[40,330,500,730,930,1100][j],y));});reporteXCCData=canvas.toDataURL("image/png");const img=document.getElementById("imagenReporteXCC");if(img)img.src=reporteXCCData;document.getElementById("modalReporteXCC")?.classList.add("visible");}
+function calcularAltoReporteXCC(){
+    const filas=datosXCC.length;
+    return 170+(filas*58)+160;
+}
+function dibujarReporteXCC(ctx,ancho,alto,fechaReporte,horaReporte){
+    const azul="#102b4e",azulTexto="#11253f",borde="#c8d0d8",blanco="#ffffff",grisTexto="#6f7d8c",grisClaro="#f5f6f8";
+    ctx.fillStyle=blanco;ctx.fillRect(0,0,ancho,alto);
+
+    const margen=14,headerX=margen,headerY=14,headerW=ancho-(margen*2),headerH=112;
+    ctx.fillStyle=azul;ctx.fillRect(headerX,headerY,headerW,headerH);
+    const bloqueFecha=330,bloqueLogo=330;
+    ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(headerX+bloqueFecha,headerY);ctx.lineTo(headerX+bloqueFecha,headerY+headerH);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(headerX+headerW-bloqueLogo,headerY);ctx.lineTo(headerX+headerW-bloqueLogo,headerY+headerH);ctx.stroke();
+
+    const calX=50,calY=43;ctx.strokeStyle="#c7d0db";ctx.lineWidth=4;ctx.strokeRect(calX,calY,34,31);
+    ctx.beginPath();ctx.moveTo(calX+7,calY-7);ctx.lineTo(calX+7,calY+4);ctx.moveTo(calX+27,calY-7);ctx.lineTo(calX+27,calY+4);ctx.stroke();
+    ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<3;i++){ctx.moveTo(calX+8,calY+11+i*7);ctx.lineTo(calX+29,calY+11+i*7);}ctx.stroke();
+    ctx.fillStyle=blanco;ctx.textAlign="left";ctx.font="bold 34px Arial";ctx.fillText(fechaReporte.replace(/\//g,"-"),105,65);
+    ctx.font="bold 18px Arial";ctx.fillText("Fecha del inventario",106,91);
+
+    const centroX=headerX+bloqueFecha+26;ctx.fillStyle=blanco;ctx.font="bold 22px Arial";ctx.fillText("ESTIBAS XCC",centroX,48);ctx.font="bold 58px Arial";ctx.fillText("SERVITODO",centroX,99);
+    if(logoServitodo.complete&&logoServitodo.naturalWidth>0){
+        const areaX=headerX+headerW-bloqueLogo,areaY=headerY,areaW=bloqueLogo,areaH=headerH,maxW=205,maxH=96;
+        let logoW=logoServitodo.naturalWidth,logoH=logoServitodo.naturalHeight,esc=Math.min(maxW/logoW,maxH/logoH);logoW*=esc;logoH*=esc;
+        ctx.drawImage(logoServitodo,areaX+(areaW-logoW)/2,areaY+(areaH-logoH)/2,logoW,logoH);
+    }
+
+    const tablaX=14,tablaY=146,tablaW=ancho-(tablaX*2),columnas=[300,170,245,170,170,131],total=columnas.reduce((a,b)=>a+b,0),escala=tablaW/total;
+    const ws=columnas.map(v=>v*escala),xs=[tablaX];for(let i=0;i<ws.length-1;i++)xs.push(xs[i]+ws[i]);
+    const tablaHeaderH=44,rowH=58;
+    ctx.fillStyle=azul;ctx.fillRect(tablaX,tablaY,tablaW,tablaHeaderH);
+    ctx.strokeStyle=borde;ctx.lineWidth=1;ctx.strokeRect(tablaX,tablaY,tablaW,tablaHeaderH+datosXCC.length*rowH);
+    ctx.fillStyle=blanco;ctx.font="bold 17px Arial";ctx.textAlign="center";
+    ["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"].forEach((txt,i)=>ctx.fillText(txt,xs[i]+ws[i]/2,tablaY+28));
+    for(let i=1;i<xs.length;i++){ctx.beginPath();ctx.moveTo(xs[i],tablaY);ctx.lineTo(xs[i],tablaY+tablaHeaderH+datosXCC.length*rowH);ctx.stroke();}
+    datosXCC.forEach((f,i)=>{
+        const y=tablaY+tablaHeaderH+i*rowH,dias=f.estibasDia>0?f.inventarioActual/f.estibasDia:0,faltante=f.objetivo-f.inventarioActual;
+        ctx.fillStyle=i%2===0?blanco:"#fafbfc";ctx.fillRect(tablaX,y,tablaW,rowH);
+        ctx.strokeStyle=borde;ctx.beginPath();ctx.moveTo(tablaX,y);ctx.lineTo(tablaX+tablaW,y);ctx.stroke();
+        ctx.textAlign="center";ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";textoAjustado(ctx,f.cliente,xs[0]+12,y+36,ws[0]-24);
+        [formatear(f.estibasDia),formatear(f.inventarioActual),dias.toFixed(1),formatear(f.objetivo),formatear(faltante)].forEach((v,j)=>ctx.fillText(String(v),xs[j+1]+ws[j+1]/2,y+36));
+    });
+    ctx.strokeStyle=borde;ctx.lineWidth=2;ctx.strokeRect(tablaX,tablaY,tablaW,tablaHeaderH+datosXCC.length*rowH);
+
+    const footerY=tablaY+tablaHeaderH+datosXCC.length*rowH+10,footerH=116,f1=tablaX,f2=tablaX+tablaW/3,f3=tablaX+(tablaW/3)*2;
+    ctx.fillStyle=blanco;ctx.fillRect(f1,footerY,tablaW,footerH);ctx.strokeStyle=borde;ctx.lineWidth=1;ctx.strokeRect(f1,footerY,tablaW,footerH);
+    ctx.beginPath();ctx.moveTo(f2,footerY);ctx.lineTo(f2,footerY+footerH);ctx.moveTo(f3,footerY);ctx.lineTo(f3,footerY+footerH);ctx.stroke();
+    ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.beginPath();ctx.arc(f1+40,footerY+44,18,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+40,footerY+31);ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+49,footerY+49);ctx.stroke();
+    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.textAlign="left";ctx.fillText("Generado el:",f1+73,footerY+32);ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText(fechaReporte+" "+horaReporte,f1+73,footerY+62);
+    ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.beginPath();ctx.arc(f2+40,footerY+40,12,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(f2+40,footerY+52);ctx.lineTo(f2+40,footerY+66);ctx.stroke();
+    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.fillText("Elaborado por:",f2+73,footerY+32);ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText("Duvan C",f2+73,footerY+62);
+    const docX=f3+40;ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.strokeRect(docX-13,footerY+24,25,34);ctx.beginPath();ctx.moveTo(docX-6,footerY+34);ctx.lineTo(docX+6,footerY+34);ctx.moveTo(docX-6,footerY+41);ctx.lineTo(docX+6,footerY+41);ctx.moveTo(docX-6,footerY+48);ctx.lineTo(docX+6,footerY+48);ctx.stroke();
+    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.fillText("Inventario de estibas XCC",f3+73,footerY+32);ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText("Página 1 de 1",f3+73,footerY+62);
+}
+async function generarReporteXCC(){
+    if(!datosXCC.length)return mensajeXCC("No hay datos XCC para generar el reporte","error");
+    const momento=new Date();
+    const fechaReporte=momento.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
+    const horaReporte=momento.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
+    if(!logoServitodo.complete){await new Promise(resolve=>{logoServitodo.onload=resolve;logoServitodo.onerror=resolve;});}
+    const canvas=document.createElement("canvas"),ancho=1200,alto=calcularAltoReporteXCC();canvas.width=ancho;canvas.height=alto;
+    const ctx=canvas.getContext("2d");dibujarReporteXCC(ctx,ancho,alto,fechaReporte,horaReporte);
+    reporteXCCData=canvas.toDataURL("image/png");
+    const img=document.getElementById("imagenReporteXCC");if(img)img.src=reporteXCCData;
+    document.getElementById("modalReporteXCC")?.classList.add("visible");
+}
 function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();}
 prepararEventosXCC();
 iniciarAplicacion();
