@@ -2052,3 +2052,119 @@ button, input, select, textarea {
     #listaMovimientos .btn-eliminar-movimiento{grid-area:eliminar !important;grid-column:auto !important;grid-row:auto !important;width:100% !important;min-width:0 !important;display:block !important;visibility:visible !important;}
     #listaMovimientos .movimiento-dato strong{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;}
 }
+
+
+/* =========================================================
+   V7 - MOVIMIENTOS MOVIL: SIN RECORTES Y CON AMBOS BOTONES
+   Este bloque queda al final para tener prioridad sobre overrides anteriores.
+========================================================= */
+@media (max-width: 800px){
+    #movimientosCard,
+    #listaMovimientos,
+    #listaMovimientos .movimiento-item{
+        width:100% !important;
+        max-width:100% !important;
+        min-width:0 !important;
+        box-sizing:border-box !important;
+    }
+
+    #listaMovimientos{
+        overflow-x:hidden !important;
+    }
+
+    #listaMovimientos .movimiento-item{
+        display:grid !important;
+        grid-template-columns:56px minmax(0,1fr) !important;
+        grid-template-areas:
+            "hora cliente"
+            "hora elemento"
+            "cantidad estado"
+            "acciones acciones" !important;
+        gap:10px !important;
+        padding:14px !important;
+        overflow:visible !important;
+    }
+
+    #listaMovimientos .movimiento-hora{
+        grid-area:hora !important;
+        min-width:0 !important;
+        align-self:start !important;
+        white-space:nowrap !important;
+    }
+
+    #listaMovimientos .movimiento-cliente{
+        grid-area:cliente !important;
+        min-width:0 !important;
+    }
+
+    #listaMovimientos .movimiento-elemento{
+        grid-area:elemento !important;
+        min-width:0 !important;
+    }
+
+    #listaMovimientos .movimiento-dato strong{
+        white-space:normal !important;
+        overflow:visible !important;
+        text-overflow:clip !important;
+        overflow-wrap:anywhere !important;
+        word-break:break-word !important;
+        line-height:1.2 !important;
+    }
+
+    #listaMovimientos .movimiento-cantidad{
+        grid-area:cantidad !important;
+        min-width:0 !important;
+        text-align:left !important;
+        white-space:nowrap !important;
+        font-size:16px !important;
+    }
+
+    #listaMovimientos .movimiento-estado{
+        grid-area:estado !important;
+        min-width:0 !important;
+        white-space:nowrap !important;
+        overflow:hidden !important;
+        text-overflow:ellipsis !important;
+    }
+
+    #listaMovimientos .movimiento-acciones{
+        grid-area:acciones !important;
+        display:grid !important;
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        gap:8px !important;
+        width:100% !important;
+        min-width:0 !important;
+    }
+
+    #listaMovimientos .btn-editar-movimiento,
+    #listaMovimientos .btn-eliminar-movimiento{
+        display:block !important;
+        visibility:visible !important;
+        position:static !important;
+        width:100% !important;
+        min-width:0 !important;
+        max-width:100% !important;
+        margin:0 !important;
+        white-space:normal !important;
+        overflow:visible !important;
+        box-sizing:border-box !important;
+        padding:10px 6px !important;
+        font-size:12px !important;
+    }
+}
+
+@media (max-width: 430px){
+    #listaMovimientos .movimiento-item{
+        grid-template-columns:50px minmax(0,1fr) !important;
+        padding:12px !important;
+    }
+
+    #listaMovimientos .movimiento-acciones{
+        grid-template-columns:1fr 1fr !important;
+    }
+
+    #listaMovimientos .btn-editar-movimiento,
+    #listaMovimientos .btn-eliminar-movimiento{
+        font-size:11px !important;
+    }
+}

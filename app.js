@@ -1815,6 +1815,29 @@ async function sincronizarXCCPendientes(){
         programarReintentoSincronizacion();
     }
 }
+function dibujarTextoMultilineaReporte(ctx,texto,x,y,maxWidth,lineHeight,maxLines=2){
+    const palabras=String(texto||"").split(/\s+/);
+    const lineas=[];
+    let linea="";
+    for(const palabra of palabras){
+        const prueba=linea?linea+" "+palabra:palabra;
+        if(ctx.measureText(prueba).width<=maxWidth){
+            linea=prueba;
+        }else{
+            if(linea)lineas.push(linea);
+            linea=palabra;
+        }
+    }
+    if(linea)lineas.push(linea);
+    const visibles=lineas.slice(0,maxLines);
+    if(lineas.length>maxLines){
+        let ultima=visibles[visibles.length-1]||"";
+        while(ultima && ctx.measureText(ultima+"...").width>maxWidth)ultima=ultima.slice(0,-1);
+        visibles[visibles.length-1]=(ultima||"")+"...";
+    }
+    visibles.forEach((linea,i)=>ctx.fillText(linea,x,y+i*lineHeight));
+}
+
 function generarReporteXCC(){
     if(!datosXCC.length){
         mensajeXCC("No hay datos XCC para generar el reporte","error");
@@ -1828,16 +1851,18 @@ function generarReporteXCC(){
     const canvas=document.createElement("canvas");
     const ancho=1200;
     const filas=datosXCC.length;
-    const alto=146+76+(filas*58)+14+126;
+    const filaCabecera=76;
+    const filaDato=58;
+    const tablaY=146;
+    const tablaX=14;
+    const tablaW=ancho-(tablaX*2);
+    const alto=tablaY+filaCabecera+(filas*filaDato)+14+126;
     canvas.width=ancho;
     canvas.height=alto;
-    const ctx=canvas.getContext("2d");
 
+    const ctx=canvas.getContext("2d");
     const azul="#102b4e";
     const azulTexto="#11253f";
-    const verde="#168b3b";
-    const azulProceso="#1957ae";
-    const morado="#7140a8";
     const naranja="#c77700";
     const borde="#c8d0d8";
     const grisClaro="#f5f6f8";
@@ -1847,24 +1872,30 @@ function generarReporteXCC(){
     ctx.fillStyle=blanco;
     ctx.fillRect(0,0,ancho,alto);
 
-    // ENCABEZADO - mismo lenguaje visual del reporte diario
-    const margen=14, headerX=margen, headerY=14, headerW=ancho-(margen*2), headerH=112;
+    // =================================================
+    // ENCABEZADO (misma estructura que Inventario Diario)
+    // =================================================
+    const margen=14;
+    const headerX=margen;
+    const headerY=14;
+    const headerW=ancho-(margen*2);
+    const headerH=112;
+    const bloqueFecha=330;
+    const bloqueLogo=330;
+
     ctx.fillStyle=azul;
     ctx.fillRect(headerX,headerY,headerW,headerH);
 
-    const bloqueFecha=330, bloqueLogo=330;
     ctx.strokeStyle="rgba(255,255,255,.5)";
     ctx.lineWidth=2;
     ctx.beginPath();
     ctx.moveTo(headerX+bloqueFecha,headerY);
     ctx.lineTo(headerX+bloqueFecha,headerY+headerH);
-    ctx.stroke();
-    ctx.beginPath();
     ctx.moveTo(headerX+headerW-bloqueLogo,headerY);
     ctx.lineTo(headerX+headerW-bloqueLogo,headerY+headerH);
     ctx.stroke();
 
-    // calendario
+    // Calendario
     const calX=50, calY=43;
     ctx.strokeStyle="#c7d0db";
     ctx.lineWidth=4;
@@ -1873,8 +1904,12 @@ function generarReporteXCC(){
     ctx.moveTo(calX+7,calY-7);ctx.lineTo(calX+7,calY+4);
     ctx.moveTo(calX+27,calY-7);ctx.lineTo(calX+27,calY+4);
     ctx.stroke();
-    ctx.lineWidth=2;ctx.beginPath();
-    for(let i=0;i<3;i++){ctx.moveTo(calX+8,calY+11+i*7);ctx.lineTo(calX+29,calY+11+i*7);}
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    for(let i=0;i<3;i++){
+        ctx.moveTo(calX+8,calY+11+i*7);
+        ctx.lineTo(calX+29,calY+11+i*7);
+    }
     ctx.stroke();
 
     ctx.fillStyle=blanco;
@@ -1891,82 +1926,191 @@ function generarReporteXCC(){
     ctx.fillText("SERVITODO",centroX,99);
 
     if(logoServitodo.complete&&logoServitodo.naturalWidth>0){
-        const areaX=headerX+headerW-bloqueLogo, areaY=headerY, areaW=bloqueLogo, areaH=headerH;
+        const areaX=headerX+headerW-bloqueLogo;
+        const areaY=headerY;
+        const areaW=bloqueLogo;
+        const areaH=headerH;
         const maxW=205,maxH=96;
-        let logoW=logoServitodo.naturalWidth,logoH=logoServitodo.naturalHeight;
+        let logoW=logoServitodo.naturalWidth, logoH=logoServitodo.naturalHeight;
         const escala=Math.min(maxW/logoW,maxH/logoH);
         logoW*=escala;logoH*=escala;
         ctx.drawImage(logoServitodo,areaX+(areaW-logoW)/2,areaY+(areaH-logoH)/2,logoW,logoH);
     }
 
+    // =================================================
     // TABLA
-    const tablaX=14, tablaY=146, tablaW=ancho-(tablaX*2);
-    const columnas=[230,150,195,165,180,252];
-    const suma=columnas.reduce((a,b)=>a+b,0), escala=tablaW/suma;
+    // =================================================
+    const columnas=[240,140,210,175,165,170];
+    const suma=columnas.reduce((a,b)=>a+b,0);
+    const escala=tablaW/suma;
     const ws=columnas.map(v=>v*escala);
-    const xs=[];let acc=tablaX;for(const w of ws){xs.push(acc);acc+=w;}
-    const filaHeader=76;
+    const xs=[];
+    let acc=tablaX;
+    ws.forEach(w=>{xs.push(acc);acc+=w;});
 
-    ctx.fillStyle=grisClaro;ctx.fillRect(tablaX,tablaY,tablaW,filaHeader);
-    ctx.strokeStyle=borde;ctx.lineWidth=1;ctx.strokeRect(tablaX,tablaY,tablaW,filaHeader);
-    for(let i=1;i<xs.length;i++){ctx.beginPath();ctx.moveTo(xs[i],tablaY);ctx.lineTo(xs[i],tablaY+filaHeader);ctx.stroke();}
+    ctx.fillStyle=grisClaro;
+    ctx.fillRect(tablaX,tablaY,tablaW,filaCabecera);
+    ctx.strokeStyle=borde;
+    ctx.lineWidth=1;
+    ctx.strokeRect(tablaX,tablaY,tablaW,filaCabecera);
 
-    ctx.fillStyle=azulTexto;ctx.textAlign="center";ctx.font="bold 21px Arial";
-    const titulos=["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"];
-    titulos.forEach((t,i)=>ctx.fillText(t,xs[i]+ws[i]/2,tablaY+45));
+    for(let i=1;i<xs.length;i++){
+        ctx.beginPath();
+        ctx.moveTo(xs[i],tablaY);
+        ctx.lineTo(xs[i],tablaY+filaCabecera);
+        ctx.stroke();
+    }
 
-    let y=tablaY+filaHeader;
+    ctx.fillStyle=azulTexto;
+    ctx.textAlign="center";
+    ctx.font="bold 17px Arial";
+    const titulos=[
+        "CLIENTE",
+        "ESTIBAS/DÍA",
+        "INVENTARIO ACTUAL",
+        "DÍAS CUBIERTOS",
+        "OBJETIVO",
+        "FALTANTE"
+    ];
+    titulos.forEach((t,i)=>{
+        const maxW=ws[i]-16;
+        dibujarTextoMultilineaReporte(
+            ctx,t,
+            xs[i]+ws[i]/2,
+            tablaY+31,
+            maxW,
+            20,
+            2
+        );
+    });
+
+    let y=tablaY+filaCabecera;
     datosXCC.forEach((f,i)=>{
         ctx.fillStyle=i%2===0?blanco:"#fafbfc";
-        ctx.fillRect(tablaX,y,tablaW,58);
-        ctx.strokeStyle=borde;ctx.beginPath();ctx.moveTo(tablaX,y);ctx.lineTo(tablaX+tablaW,y);ctx.stroke();
+        ctx.fillRect(tablaX,y,tablaW,filaDato);
+        ctx.strokeStyle=borde;
+        ctx.beginPath();
+        ctx.moveTo(tablaX,y);
+        ctx.lineTo(tablaX+tablaW,y);
+        ctx.stroke();
 
         const dias=f.estibasDia>0?(Number(f.inventarioActual)||0)/f.estibasDia:0;
         const faltante=(Number(f.objetivo)||0)-(Number(f.inventarioActual)||0);
-        const valores=[f.cliente,formatear(f.estibasDia),formatear(f.inventarioActual),dias.toFixed(1),formatear(f.objetivo),formatear(faltante)];
+        const valores=[
+            f.cliente,
+            formatear(f.estibasDia),
+            formatear(f.inventarioActual),
+            dias.toFixed(1),
+            formatear(f.objetivo),
+            formatear(faltante)
+        ];
 
-        ctx.textAlign="center";ctx.font="bold 18px Arial";
-        for(let j=0;j<valores.length;j++){
-            if(j===0)ctx.fillStyle=azulTexto;
-            else if(j===5)ctx.fillStyle=faltante>0?naranja:faltante<0?verde:grisTexto;
-            else ctx.fillStyle=azulTexto;
-            const txt=String(valores[j]);
-            if(j===0)textoAjustado(ctx,txt,xs[j]+ws[j]/2,y+36,ws[j]-24);
-            else ctx.fillText(txt,xs[j]+ws[j]/2,y+36);
+        ctx.textAlign="center";
+        ctx.font="bold 18px Arial";
+        valores.forEach((valor,j)=>{
+            ctx.fillStyle=j===5?(faltante>0?naranja:faltante<0?"#168b3b":grisTexto):azulTexto;
+            if(j===0){
+                textoAjustado(ctx,String(valor),xs[j]+ws[j]/2,y+36,ws[j]-20);
+            }else{
+                ctx.fillText(String(valor),xs[j]+ws[j]/2,y+36);
+            }
+        });
+
+        for(let j=1;j<xs.length;j++){
+            ctx.strokeStyle=borde;
+            ctx.beginPath();
+            ctx.moveTo(xs[j],y);
+            ctx.lineTo(xs[j],y+filaDato);
+            ctx.stroke();
         }
-        for(let j=1;j<xs.length;j++){ctx.strokeStyle=borde;ctx.beginPath();ctx.moveTo(xs[j],y);ctx.lineTo(xs[j],y+58);ctx.stroke();}
-        y+=58;
+        y+=filaDato;
     });
-    ctx.strokeStyle=borde;ctx.lineWidth=2;ctx.strokeRect(tablaX,tablaY,tablaW,y-tablaY);
 
-    // PIE - mismo formato general
-    const footerY=y+10, footerH=116, f1=tablaX, f2=tablaX+tablaW/3, f3=tablaX+(tablaW/3)*2;
-    ctx.fillStyle=blanco;ctx.fillRect(f1,footerY,tablaW,footerH);
-    ctx.strokeStyle=borde;ctx.lineWidth=1;ctx.strokeRect(f1,footerY,tablaW,footerH);
-    ctx.beginPath();ctx.moveTo(f2,footerY);ctx.lineTo(f2,footerY+footerH);ctx.moveTo(f3,footerY);ctx.lineTo(f3,footerY+footerH);ctx.stroke();
+    ctx.strokeStyle=borde;
+    ctx.lineWidth=2;
+    ctx.strokeRect(tablaX,tablaY,tablaW,y-tablaY);
 
-    // reloj
-    ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.beginPath();ctx.arc(f1+40,footerY+44,18,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+40,footerY+31);ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+49,footerY+49);ctx.stroke();
-    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.textAlign="left";ctx.fillText("Generado el:",f1+73,footerY+32);
-    ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText(fechaReporte+" "+horaReporte,f1+73,footerY+62);
+    // =================================================
+    // PIE (misma estructura que Inventario Diario)
+    // =================================================
+    const footerY=y+10;
+    const footerH=116;
+    const f1=tablaX;
+    const f2=tablaX+tablaW/3;
+    const f3=tablaX+(tablaW/3)*2;
 
-    // persona
-    const personaX=f2+42;ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.beginPath();ctx.arc(personaX,footerY+34,8,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(personaX,footerY+68,17,Math.PI,0);ctx.stroke();
-    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.fillText("Elaborado por:",f2+73,footerY+32);
-    ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText("Duvan C",f2+73,footerY+62);
+    ctx.fillStyle=blanco;
+    ctx.fillRect(f1,footerY,tablaW,footerH);
+    ctx.strokeStyle=borde;
+    ctx.lineWidth=1;
+    ctx.strokeRect(f1,footerY,tablaW,footerH);
 
-    // documento
-    const docX=f3+40;ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.strokeRect(docX-13,footerY+24,25,34);ctx.beginPath();
-    ctx.moveTo(docX-6,footerY+34);ctx.lineTo(docX+6,footerY+34);ctx.moveTo(docX-6,footerY+41);ctx.lineTo(docX+6,footerY+41);ctx.moveTo(docX-6,footerY+48);ctx.lineTo(docX+6,footerY+48);ctx.stroke();
-    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.fillText("Inventario de estibas XCC",f3+73,footerY+32);
-    ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText("Página 1 de 1",f3+73,footerY+62);
+    ctx.beginPath();
+    ctx.moveTo(f2,footerY);ctx.lineTo(f2,footerY+footerH);
+    ctx.moveTo(f3,footerY);ctx.lineTo(f3,footerY+footerH);
+    ctx.stroke();
+
+    // Reloj
+    ctx.strokeStyle="#738292";
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.arc(f1+40,footerY+44,18,0,Math.PI*2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+40,footerY+31);
+    ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+49,footerY+49);
+    ctx.stroke();
+
+    ctx.fillStyle=grisTexto;
+    ctx.font="15px Arial";
+    ctx.textAlign="left";
+    ctx.fillText("Generado el:",f1+73,footerY+32);
+    ctx.fillStyle=azulTexto;
+    ctx.font="bold 18px Arial";
+    ctx.fillText(fechaReporte+" "+horaReporte,f1+73,footerY+62);
+
+    // Persona
+    const personaX=f2+42;
+    ctx.strokeStyle="#738292";
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.arc(personaX,footerY+34,8,0,Math.PI*2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(personaX,footerY+68,17,Math.PI,0);
+    ctx.stroke();
+
+    ctx.fillStyle=grisTexto;
+    ctx.font="15px Arial";
+    ctx.fillText("Elaborado por:",f2+73,footerY+32);
+    ctx.fillStyle=azulTexto;
+    ctx.font="bold 18px Arial";
+    ctx.fillText("Duvan C",f2+73,footerY+62);
+
+    // Documento
+    const docX=f3+40;
+    ctx.strokeStyle="#738292";
+    ctx.lineWidth=3;
+    ctx.strokeRect(docX-13,footerY+24,25,34);
+    ctx.beginPath();
+    ctx.moveTo(docX-6,footerY+34);ctx.lineTo(docX+6,footerY+34);
+    ctx.moveTo(docX-6,footerY+41);ctx.lineTo(docX+6,footerY+41);
+    ctx.moveTo(docX-6,footerY+48);ctx.lineTo(docX+6,footerY+48);
+    ctx.stroke();
+
+    ctx.fillStyle=grisTexto;
+    ctx.font="15px Arial";
+    ctx.fillText("Inventario de estibas XCC",f3+73,footerY+32);
+    ctx.fillStyle=azulTexto;
+    ctx.font="bold 18px Arial";
+    ctx.fillText("Página 1 de 1",f3+73,footerY+62);
 
     reporteXCCData=canvas.toDataURL("image/png");
     const img=document.getElementById("imagenReporteXCC");
     if(img)img.src=reporteXCCData;
     document.getElementById("modalReporteXCC")?.classList.add("visible");
 }
+
 function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();}
 prepararEventosXCC();
 iniciarAplicacion();
