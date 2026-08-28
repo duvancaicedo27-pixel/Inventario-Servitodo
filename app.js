@@ -205,7 +205,27 @@ async function limpiarOperacionesInvalidas(){
             const accion=p.accion||"";
             // Solo limpiamos operaciones de registro normal claramente corruptas.
             // Las operaciones de editar/eliminar/XCC se conservan.
-            if(accion==="editarMovimiento"||accion==="eliminarMovimiento"||accion==="registrarInventarioXCC")continue;
+            if(accion==="registrarInventarioXCC")continue;
+            if(accion==="eliminarMovimiento") {
+                // Una eliminación solo puede enviarse al servidor si existe una fila real de Sheets.
+                // Si no hay fila (movimiento nunca sincronizado) o el movimiento local ya no existe,
+                // la operación de eliminación quedó huérfana y no debe bloquear la cola.
+                const fila=Number(p.fila)||0;
+                const localId=String(p.localId||"");
+                const movimientoLocal=localId?registros.find(r=>r.id===localId):null;
+                if(fila<2 && !movimientoLocal)await dbDelete("operaciones",op.id);
+                else if(fila<2 && movimientoLocal && movimientoLocal.sincronizado===false)await dbDelete("operaciones",op.id);
+                continue;
+            }
+            if(accion==="editarMovimiento"){
+                const cliente=String(p.cliente||"").trim();
+                const elemento=String(p.elemento||"").trim();
+                const cantidad=Number(p.cantidad);
+                const estado=normalizarTexto(p.estado);
+                const valida=!!p.localId&&cliente&&elemento&&cantidad>0&&(estado==="MONO"||estado==="PROCESO");
+                if(!valida)await dbDelete("operaciones",op.id);
+                continue;
+            }
             const cliente=String(p.cliente||"").trim();
             const elemento=String(p.elemento||"").trim();
             const cantidad=Number(p.cantidad);
@@ -720,9 +740,17 @@ async function editarMovimiento(registro){
 async function eliminarMovimiento(registro){
     if(!confirm("¿Seguro que deseas eliminar este movimiento?"))return;
     if(!dbOffline)await abrirDBOffline();
+    // Si el movimiento todavía no se ha sincronizado, no tiene sentido crear una eliminación
+    // para Sheets: basta con cancelar su operación de registro pendiente.
+    const operaciones=await dbAll("operaciones");
+    const operacionesRegistro=operaciones.filter(op=>op.payload&&op.payload.localId===registro.id&&op.payload.accion!=="eliminarMovimiento");
+    for(const op of operacionesRegistro)await dbDelete("operaciones",op.id);
+    const necesitaEliminacionRemota=Number(registro.fila)>=2||registro.sincronizado===true;
     registros=registros.filter(r=>r.id!==registro.id);
     await dbDelete("movimientos",registro.id);
-    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"eliminarMovimiento",fila:Number(registro.fila)||null,localId:registro.id}});
+    if(necesitaEliminacionRemota){
+        await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"eliminarMovimiento",fila:Number(registro.fila)||null,localId:registro.id}});
+    }
     actualizarResumen();actualizarMovimientos();actualizarEstadoConexion();mostrarMensaje(navigator.onLine?"✓ Eliminado. Sincronizando...":"✓ Eliminado sin conexión","ok");
     if(navigator.onLine)sincronizarPendientes();
 }
