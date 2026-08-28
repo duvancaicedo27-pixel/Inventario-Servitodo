@@ -542,8 +542,9 @@ function actualizarResumen(){
 function crearSeccionMovimientos(){
     if(document.getElementById("movimientosCard"))return;
 
-    const contenedorInventario=document.getElementById("moduloInventario");
-    if(!contenedorInventario)return;
+    const main=document.querySelector("main");
+    const moduloInventario=document.getElementById("moduloInventario");
+    if(!main || !moduloInventario)return;
 
     const card=document.createElement("section");
     card.id="movimientosCard";
@@ -560,11 +561,11 @@ function crearSeccionMovimientos(){
         <div id="listaMovimientos"></div>
     `;
 
-    // Los movimientos pertenecen EXCLUSIVAMENTE al Inventario Diario.
-    // Se insertan dentro del módulo de inventario, nunca dentro de XCC.
-    const resumen=contenedorInventario.querySelector(".summary-card");
+    // Los movimientos pertenecen exclusivamente al módulo Inventario Diario.
+    // Se insertan después del panel de inventario, nunca dentro de XCC.
+    const resumen=moduloInventario.querySelector(".summary-card");
     if(resumen)resumen.after(card);
-    else contenedorInventario.appendChild(card);
+    else moduloInventario.appendChild(card);
 
     agregarEstilosMovimientos();
 }
@@ -1760,100 +1761,7 @@ async function sincronizarXCCPendientes(){
         programarReintentoSincronizacion();
     }
 }
-async function generarReporteXCC(){
-    const fecha=new Date();
-    const fechaReporte=fecha.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
-    const horaReporte=fecha.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-
-    if(!logoServitodo.complete){
-        try{await new Promise(resolve=>{logoServitodo.onload=resolve;logoServitodo.onerror=resolve;});}catch(e){}
-    }
-
-    const filas=datosXCC.length;
-    const ancho=1200;
-    const alto=14+112+20+76+(filas*58)+14+126;
-    const canvas=document.createElement("canvas");
-    canvas.width=ancho;
-    canvas.height=alto;
-    const ctx=canvas.getContext("2d");
-
-    const azul="#102b4e", azulTexto="#11253f", borde="#c8d0d8", grisClaro="#f5f6f8", blanco="#ffffff", grisTexto="#6f7d8c";
-    ctx.fillStyle=blanco; ctx.fillRect(0,0,ancho,alto);
-
-    const margen=14, headerX=margen, headerY=14, headerW=ancho-(margen*2), headerH=112;
-    ctx.fillStyle=azul; ctx.fillRect(headerX,headerY,headerW,headerH);
-    const bloqueFecha=330, bloqueLogo=330;
-    ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(headerX+bloqueFecha,headerY); ctx.lineTo(headerX+bloqueFecha,headerY+headerH); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(headerX+headerW-bloqueLogo,headerY); ctx.lineTo(headerX+headerW-bloqueLogo,headerY+headerH); ctx.stroke();
-
-    const calX=50, calY=43;
-    ctx.strokeStyle="#c7d0db"; ctx.lineWidth=4; ctx.strokeRect(calX,calY,34,31);
-    ctx.beginPath(); ctx.moveTo(calX+7,calY-7); ctx.lineTo(calX+7,calY+4); ctx.moveTo(calX+27,calY-7); ctx.lineTo(calX+27,calY+4); ctx.stroke();
-    ctx.lineWidth=2; ctx.beginPath();
-    for(let i=0;i<3;i++){ctx.moveTo(calX+8,calY+11+i*7);ctx.lineTo(calX+29,calY+11+i*7);} ctx.stroke();
-    ctx.fillStyle=blanco; ctx.textAlign="left"; ctx.font="bold 34px Arial"; ctx.fillText(fechaReporte.replace(/\//g,"-"),105,65);
-    ctx.font="bold 18px Arial"; ctx.fillText("Fecha del inventario",106,91);
-
-    const centroX=headerX+bloqueFecha+26;
-    ctx.font="bold 22px Arial"; ctx.fillText("INVENTARIO DIARIO",centroX,48);
-    ctx.font="bold 58px Arial"; ctx.fillText("SERVITODO",centroX,99);
-
-    if(logoServitodo.complete&&logoServitodo.naturalWidth>0){
-        const areaX=headerX+headerW-bloqueLogo, areaY=headerY, areaW=bloqueLogo, areaH=headerH, maxW=205, maxH=96;
-        let logoW=logoServitodo.naturalWidth, logoH=logoServitodo.naturalHeight;
-        const escala=Math.min(maxW/logoW,maxH/logoH); logoW*=escala; logoH*=escala;
-        ctx.drawImage(logoServitodo,areaX+(areaW-logoW)/2,areaY+(areaH-logoH)/2,logoW,logoH);
-    }
-
-    const tablaX=14, tablaY=146, tablaW=ancho-(tablaX*2);
-    const anchos=[260,190,185,185,185,195], suma=1200;
-    const escala=tablaW/suma;
-    const w=anchos.map(v=>v*escala);
-    const x=[tablaX]; for(let i=0;i<5;i++)x.push(x[i]+w[i]);
-    const hHead=76, hRow=58;
-
-    ctx.fillStyle=grisClaro; ctx.fillRect(tablaX,tablaY,tablaW,hHead);
-    ctx.strokeStyle=borde; ctx.lineWidth=1; ctx.strokeRect(tablaX,tablaY,tablaW,hHead);
-    ctx.fillStyle=azulTexto; ctx.font="bold 20px Arial"; ctx.textAlign="center";
-    const titulos=["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"];
-    titulos.forEach((t,i)=>ctx.fillText(t,x[i]+w[i]/2,tablaY+45));
-
-    let y=tablaY+hHead;
-    datosXCC.forEach((f,i)=>{
-        ctx.fillStyle=i%2===0?blanco:"#fafbfc"; ctx.fillRect(tablaX,y,tablaW,hRow);
-        ctx.strokeStyle=borde; ctx.beginPath(); ctx.moveTo(tablaX,y); ctx.lineTo(tablaX+tablaW,y); ctx.stroke();
-        const dias=f.estibasDia>0?f.inventarioActual/f.estibasDia:0, faltante=f.objetivo-f.inventarioActual;
-        const vals=[f.cliente,formatear(f.estibasDia),formatear(f.inventarioActual),dias.toFixed(1),formatear(f.objetivo),formatear(faltante)];
-        vals.forEach((v,j)=>{
-            ctx.fillStyle=j===5?(faltante>0?"#c62828":faltante<0?"#168b3b":azulTexto):azulTexto;
-            ctx.font="bold 18px Arial"; ctx.textAlign=j===0?"left":"center";
-            if(j===0) textoAjustado(ctx,v,x[j]+18,y+36,w[j]-36); else ctx.fillText(String(v),x[j]+w[j]/2,y+36);
-        });
-        y+=hRow;
-    });
-    ctx.strokeStyle=borde; ctx.lineWidth=2; ctx.strokeRect(tablaX,tablaY,tablaW,y-tablaY);
-    [1,2,3,4,5].forEach(i=>{ctx.beginPath();ctx.moveTo(x[i],tablaY);ctx.lineTo(x[i],y);ctx.stroke();});
-
-    const footerY=y+14, footerH=116, f1=tablaX, f2=tablaX+tablaW/3, f3=tablaX+(tablaW/3)*2;
-    ctx.fillStyle=blanco; ctx.fillRect(f1,footerY,tablaW,footerH); ctx.strokeStyle=borde; ctx.lineWidth=1; ctx.strokeRect(f1,footerY,tablaW,footerH);
-    ctx.beginPath();ctx.moveTo(f2,footerY);ctx.lineTo(f2,footerY+footerH);ctx.moveTo(f3,footerY);ctx.lineTo(f3,footerY+footerH);ctx.stroke();
-
-    ctx.strokeStyle="#738292"; ctx.lineWidth=3; ctx.beginPath();ctx.arc(f1+40,footerY+44,18,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+40,footerY+31);ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+49,footerY+49);ctx.stroke();
-    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.textAlign="left";ctx.fillText("Generado el:",f1+73,footerY+32);
-    ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText(fechaReporte+" "+horaReporte,f1+73,footerY+62);
-
-    const personaX=f2+42; ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.beginPath();ctx.arc(personaX,footerY+34,8,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(personaX,footerY+68,17,Math.PI,0);ctx.stroke();
-    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.fillText("Elaborado por:",f2+73,footerY+32);ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText("Duvan C",f2+73,footerY+62);
-
-    const docX=f3+40;ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.strokeRect(docX-13,footerY+24,25,34);ctx.beginPath();ctx.moveTo(docX-6,footerY+34);ctx.lineTo(docX+6,footerY+34);ctx.moveTo(docX-6,footerY+41);ctx.lineTo(docX+6,footerY+41);ctx.moveTo(docX-6,footerY+48);ctx.lineTo(docX+6,footerY+48);ctx.stroke();
-    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.fillText("Inventario diario Servitodo",f3+73,footerY+32);ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText("Página 1 de 1",f3+73,footerY+62);
-
-    reporteXCCData=canvas.toDataURL("image/png");
-    const img=document.getElementById("imagenReporteXCC"); if(img)img.src=reporteXCCData;
-    document.getElementById("modalReporteXCC")?.classList.add("visible");
-}
+function generarReporteXCC(){const fecha=new Date(),ft=fecha.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"}),ht=fecha.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}),canvas=document.createElement("canvas"),w=1400,h=220+datosXCC.length*60;canvas.width=w;canvas.height=h;const c=canvas.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,w,h);c.fillStyle="#102b4e";c.fillRect(0,0,w,120);c.fillStyle="#fff";c.font="bold 34px Arial";c.fillText("INVENTARIO DIARIO ESTIBAS XCC",42,55);c.font="bold 20px Arial";c.fillText(ft+"  |  "+ht,42,90);c.fillStyle="#102b4e";c.font="bold 17px Arial";["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"].forEach((x,i)=>c.fillText(x,[40,330,500,730,930,1100][i],160));c.font="16px Arial";datosXCC.forEach((f,i)=>{const y=195+i*60,d=f.estibasDia>0?f.inventarioActual/f.estibasDia:0,x=f.objetivo-f.inventarioActual;[f.cliente,formatear(f.estibasDia),formatear(f.inventarioActual),d.toFixed(1),formatear(f.objetivo),formatear(x)].forEach((v,j)=>c.fillText(String(v),[40,330,500,730,930,1100][j],y));});reporteXCCData=canvas.toDataURL("image/png");const img=document.getElementById("imagenReporteXCC");if(img)img.src=reporteXCCData;document.getElementById("modalReporteXCC")?.classList.add("visible");}
 function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();}
 prepararEventosXCC();
 iniciarAplicacion();

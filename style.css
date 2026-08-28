@@ -927,18 +927,28 @@ button{
 
 /* ===== DISTRIBUCION INVENTARIO PRINCIPAL ===== */
 .dashboard > #moduloInventario{display:contents;}
+/* XCC ocupa todo el ancho disponible y permanece centrado. */
+.dashboard > #moduloXCC{
+    grid-column:1 / -1;
+    width:100%;
+    max-width:1200px;
+    margin:0 auto;
+}
+.dashboard > #moduloXCC .xcc-card{
+    width:100%;
+    margin:0 auto;
+}
 /* ===== MODULOS ===== */
 .modulos{display:flex;gap:10px;padding:0 24px;background:var(--background);max-width:1500px;margin:0 auto;}
 .modulo-btn{border:1px solid var(--border);border-bottom:0;background:#fff;color:var(--navy);border-radius:10px 10px 0 0;padding:12px 24px;font-size:12px;font-weight:900;cursor:pointer;transition:.2s;}
 .modulo-btn:hover{background:#edf4fb;}
 .modulo-btn.activo{background:var(--navy);color:#fff;border-color:var(--navy);}
 /* ===== XCC ===== */
-.xcc-card{grid-column:1 / -1;justify-self:center;width:100%;max-width:1250px;box-sizing:border-box;}
-#movimientosCard{grid-column:1 / -1;width:100%;box-sizing:border-box;}
+.xcc-card{grid-column:1 / -1;min-width:0;}
 .xcc-fecha{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:4px 0 18px;padding:13px 15px;border:1px solid var(--border);border-radius:10px;background:#f7f9fc;}
 .xcc-fecha span{font-size:11px;font-weight:900;color:#71829a;letter-spacing:.8px;}
 .xcc-fecha strong{font-size:18px;color:var(--navy);}
-.xcc-table{min-width:920px;width:100%;}
+.xcc-table{min-width:920px;}
 .xcc-table thead th{text-align:center;}
 .xcc-table tbody td{vertical-align:middle;}
 .xcc-table tbody td:first-child{text-align:left;}
@@ -948,7 +958,35 @@ button{
 .xcc-faltante{font-weight:900!important;color:#68798d!important;}
 .xcc-faltante.faltante{color:#c77700!important;}
 .xcc-faltante.excedente{color:var(--green)!important;}
-.xcc-actions{display:flex;justify-content:center;gap:10px;margin-top:16px;}
+.xcc-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
 .xcc-actions .primary-button{width:auto;min-width:250px;}
 .xcc-actions .report-button{min-width:190px;}
-@media(max-width:850px){.modulos{padding:0 12px;}.modulo-btn{flex:1;padding:11px 10px;font-size:10px;}.xcc-fecha{align-items:flex-start;flex-direction:column;gap:5px;}.xcc-actions{flex-direction:column;}.xcc-actions .primary-button,.xcc-actions .report-button{width:100%;}}
+@media(max-width:850px){
+    .dashboard > #moduloXCC{
+        grid-column:1 / -1;
+        width:100%;
+        max-width:none;
+        margin:0;
+    }
+    .dashboard > #moduloXCC .xcc-card{width:100%;padding:15px;}
+    .modulos{padding:0 12px;}
+    .modulo-btn{flex:1;padding:11px 10px;font-size:10px;}
+    .xcc-fecha{align-items:flex-start;flex-direction:column;gap:5px;}
+    .xcc-actions{flex-direction:column;}
+    .xcc-actions .primary-button,.xcc-actions .report-button{width:100%;}
+    .xcc-table{min-width:700px;}
+    .xcc-table th,.xcc-table td{font-size:10px;padding:9px 7px;}
+    .xcc-input{min-width:82px;height:38px;padding:7px 6px;font-size:12px;}
+}
+
+@media(max-width:600px){
+    .dashboard > #moduloXCC .xcc-card{padding:12px;border-radius:13px;}
+    .dashboard > #moduloXCC .section-header{margin-bottom:14px;}
+    .dashboard > #moduloXCC .section-header h2{font-size:18px;}
+    .xcc-fecha{margin-bottom:12px;padding:11px 12px;}
+    .xcc-fecha span{font-size:10px;}
+    .xcc-fecha strong{font-size:17px;}
+    .xcc-table{min-width:650px;}
+    .xcc-table th,.xcc-table td{font-size:9px;padding:8px 6px;}
+    .xcc-input{min-width:74px;height:36px;font-size:11px;}
+}
