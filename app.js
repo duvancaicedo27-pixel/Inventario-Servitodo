@@ -579,15 +579,13 @@ function agregarEstilosMovimientos(){
     style.textContent=`
         #listaMovimientos{display:grid;gap:8px}
         .movimiento-item{display:grid;grid-template-columns:75px 1fr 1fr 100px 90px 90px;align-items:center;gap:10px;padding:12px;background:#f7f9fb;border:1px solid #dce4eb;border-radius:10px}
-        .movimiento-hora{font-size:12px;color:#74869a;font-weight:700;white-space:nowrap}
+        .movimiento-hora{font-size:12px;color:#74869a;font-weight:700}
         .movimiento-dato small{display:block;font-size:9px;color:#8493a2;font-weight:800;margin-bottom:3px}
         .movimiento-dato strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#173a5d;font-size:13px}
-        .movimiento-cantidad{text-align:center;font-weight:900;white-space:nowrap}
-        .movimiento-estado{text-align:center;font-size:10px;font-weight:900;padding:7px 5px;border-radius:7px;color:white;white-space:nowrap}
+        .movimiento-cantidad{text-align:center;font-weight:900}
+        .movimiento-estado{text-align:center;font-size:10px;font-weight:900;padding:7px 5px;border-radius:7px;color:white}
         .movimiento-estado.mono{background:#168548}
         .movimiento-estado.proceso{background:#145db7}
-        .movimiento-datos-pareja{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;min-width:0;align-items:center}
-        .movimiento-datos-pareja .movimiento-dato{text-align:center;min-width:0}
         .btn-editar-movimiento,.btn-eliminar-movimiento{border:0;border-radius:8px;padding:9px;cursor:pointer;font-weight:800}
         .btn-editar-movimiento{background:#e8f1fb;color:#145db7}
         .btn-eliminar-movimiento{background:#fbeaea;color:#c62828}
@@ -596,33 +594,77 @@ function agregarEstilosMovimientos(){
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
             .movimiento-item{
-                grid-template-columns:54px minmax(0,1fr) 58px 74px;
-                grid-template-rows:auto auto;
+                grid-template-columns:68px minmax(0,1fr) 64px 108px;
+                grid-template-rows:auto auto auto;
                 align-items:center;
-                column-gap:7px;
-                row-gap:9px;
-                padding:10px 9px 9px;
+                column-gap:10px;
+                row-gap:8px;
+                padding:12px;
+            }
+            .movimiento-hora{
+                grid-column:1;
+                grid-row:1 / span 2;
+                align-self:start;
+                padding-top:3px;
+                white-space:nowrap;
+            }
+            .movimiento-cliente{
+                grid-column:2;
+                grid-row:1;
+                min-width:0;
+            }
+            .movimiento-elemento{
+                grid-column:2;
+                grid-row:2;
+                min-width:0;
+            }
+            .movimiento-cantidad{
+                grid-column:3;
+                grid-row:1 / span 2;
+                white-space:nowrap;
+                min-width:0;
+            }
+            .movimiento-estado{
+                grid-column:4;
+                grid-row:1 / span 2;
+                width:100%;
+                white-space:nowrap;
+            }
+            .btn-editar-movimiento{
+                grid-column:1 / span 2;
+                grid-row:3;
                 width:100%;
                 min-width:0;
             }
-            .movimiento-hora{grid-column:1;grid-row:1;align-self:center;text-align:left;font-size:10px;}
-            .movimiento-datos-pareja{grid-column:2;grid-row:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:1fr;gap:8px;min-width:0;width:100%;align-items:center;}
-            .movimiento-datos-pareja .movimiento-dato{grid-column:auto!important;grid-row:1!important;min-width:0;width:100%;text-align:center;}
-            .movimiento-dato small{font-size:7.5px;margin-bottom:2px;line-height:1;}
-            .movimiento-dato strong{font-size:10px;line-height:1.15;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:normal;overflow-wrap:normal;}
-            .movimiento-cantidad{grid-column:3;grid-row:1;font-size:11px;text-align:center;}
-            .movimiento-estado{grid-column:4;grid-row:1;width:100%;min-width:0;padding:6px 3px;font-size:8.5px;line-height:1.15;text-align:center;}
-            .btn-editar-movimiento{grid-column:1 / 3;grid-row:2;width:100%;min-width:0;padding:8px 6px;}
-            .btn-eliminar-movimiento{grid-column:3 / 5;grid-row:2;width:100%;min-width:0;padding:8px 6px;}
+            .btn-eliminar-movimiento{
+                grid-column:3 / span 2;
+                grid-row:3;
+                width:100%;
+                min-width:0;
+            }
+            .movimiento-dato strong{
+                overflow:visible;
+                text-overflow:clip;
+                white-space:nowrap;
+                font-size:12px;
+                line-height:1.25;
+            }
+            .movimiento-dato small{
+                white-space:nowrap;
+            }
         }
-        @media(max-width:360px){
-            .movimiento-item{grid-template-columns:50px minmax(0,1fr) 50px 70px;column-gap:6px;padding:9px 7px 8px;}
-            .movimiento-datos-pareja{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:6px;}
-            .movimiento-dato small{font-size:7px;}
-            .movimiento-dato strong{font-size:9px;}
-            .movimiento-hora{font-size:9.5px;}
-            .movimiento-cantidad{font-size:10.5px;}
-            .movimiento-estado{font-size:8px;}
+        @media(max-width:390px){
+            .movimiento-item{
+                grid-template-columns:64px minmax(0,1fr) 58px 96px;
+                column-gap:8px;
+                padding:10px;
+            }
+            .movimiento-dato strong{font-size:11px;}
+            .movimiento-dato small{font-size:8px;}
+            .movimiento-hora{font-size:11px;}
+            .movimiento-cantidad{font-size:13px;}
+            .movimiento-estado{font-size:9px;}
+            .btn-editar-movimiento,.btn-eliminar-movimiento{font-size:12px;padding:8px;}
         }
     `;
 
@@ -651,15 +693,13 @@ function actualizarMovimientos(){
 
         item.innerHTML=`
             <div class="movimiento-hora">${escaparHTML(registro.hora||"--:--")}</div>
-            <div class="movimiento-datos-pareja">
-                <div class="movimiento-dato movimiento-cliente">
-                    <small>CLIENTE</small>
-                    <strong>${escaparHTML(registro.cliente)}</strong>
-                </div>
-                <div class="movimiento-dato movimiento-elemento">
-                    <small>ELEMENTO</small>
-                    <strong>${escaparHTML(registro.elemento)}</strong>
-                </div>
+            <div class="movimiento-dato movimiento-cliente">
+                <small>CLIENTE</small>
+                <strong>${escaparHTML(registro.cliente)}</strong>
+            </div>
+            <div class="movimiento-dato movimiento-elemento">
+                <small>ELEMENTO</small>
+                <strong>${escaparHTML(registro.elemento)}</strong>
             </div>
             <div class="movimiento-cantidad">${formatear(registro.cantidad)}</div>
             <div class="movimiento-estado ${clase}">${escaparHTML(registro.estado)}</div>
@@ -1744,24 +1784,106 @@ async function cargarDatosXCC(){
     }
 }
 function prepararEventosXCC(){document.getElementById("btnInventario")?.addEventListener("click",()=>cambiarModuloXCC(false));document.getElementById("btnXCC")?.addEventListener("click",()=>cambiarModuloXCC(true));document.getElementById("guardarXCCBtn")?.addEventListener("click",guardarXCCLocal);document.getElementById("reporteXCCBtn")?.addEventListener("click",generarReporteXCC);document.getElementById("cerrarReporteXCC")?.addEventListener("click",()=>document.getElementById("modalReporteXCC")?.classList.remove("visible"));document.getElementById("descargarReporteXCC")?.addEventListener("click",descargarReporteXCC);}
+let guardandoXCC=false;
+
 async function guardarXCCLocal(){
+    if(guardandoXCC)return;
     if(!datosXCC.length)return mensajeXCC("No hay datos XCC para guardar","error");
-    if(!dbOffline)await abrirDBOffline();
-    const ahora=Date.now(),fecha=fechaActualXCC();
-    const borrador=datosXCC.map(f=>({cliente:f.cliente,estibasDia:Number(f.estibasDia)||0,inventarioActual:Number(f.inventarioActual)||0,objetivo:Number(f.objetivo)||0,ultimoId:f.ultimoId||"",ultimaFecha:f.ultimaFecha||""}));
-    localStorage.setItem("servitodo_xcc_ultimaEdicion",JSON.stringify(borrador));
-    for(const f of datosXCC){
-        const r={id:generarIdLocal("xcc"),fecha,cliente:f.cliente,estibasDia:Number(f.estibasDia)||0,inventarioActual:Number(f.inventarioActual)||0,objetivo:Number(f.objetivo)||0,diasCubiertos:f.estibasDia>0?(Number(f.inventarioActual)||0)/f.estibasDia:0,faltante:(Number(f.objetivo)||0)-(Number(f.inventarioActual)||0),creado:ahora,sincronizado:false};
-        const operacionXCC={id:generarIdLocal("opxcc"),payload:{...r,accion:"registrarInventarioXCC"}};
-        await dbPutMultiple([{store:"xcc",value:r},{store:"operacionesXCC",value:operacionXCC}]);
-        detallePendientesXCC.push(operacionXCC);
-        pendientesXCC++;
+
+    guardandoXCC=true;
+    const boton=document.getElementById("guardarXCCBtn");
+    const textoOriginal=boton?boton.innerHTML:"";
+    if(boton){
+        boton.disabled=true;
+        boton.innerHTML="✓ GUARDANDO...";
     }
-    renderizarXCC();
-    actualizarEstadoConexion();
-    mensajeXCC(navigator.onLine?"✓ Guardado local. Sincronizando...":"✓ Guardado sin conexión. Quedó pendiente de sincronizar.","ok");
-    if(navigator.onLine){sincronizarXCCPendientes();programarReintentoSincronizacion();}
-    renderizarEstadoConexion();
+
+    try{
+        if(!dbOffline)await abrirDBOffline();
+        const ahora=Date.now();
+        const fecha=fechaActualXCC();
+
+        // Garantiza una sola fila por cliente dentro de una misma operación.
+        const unicos=new Map();
+        datosXCC.forEach(f=>{
+            const clave=normalizarTexto(f.cliente);
+            if(clave)unicos.set(clave,f);
+        });
+        const filas=Array.from(unicos.values());
+
+        const borrador=filas.map(f=>({
+            cliente:f.cliente,
+            estibasDia:Number(f.estibasDia)||0,
+            inventarioActual:Number(f.inventarioActual)||0,
+            objetivo:Number(f.objetivo)||0,
+            ultimoId:f.ultimoId||"",
+            ultimaFecha:f.ultimaFecha||""
+        }));
+        localStorage.setItem("servitodo_xcc_ultimaEdicion",JSON.stringify(borrador));
+
+        const operacionesPendientes=await dbAll("operacionesXCC");
+        const pendientesKeys=new Set(operacionesPendientes.map(op=>{
+            const p=op.payload||{};
+            return fecha+"|"+normalizarTexto(p.cliente);
+        }));
+
+        for(const f of filas){
+            const claveCliente=fecha+"|"+normalizarTexto(f.cliente);
+
+            // Si ya existe una operación pendiente para este cliente y fecha,
+            // no volver a crear otra. Esto evita duplicados por doble clic o
+            // por una nueva pulsación mientras la sincronización está activa.
+            if(pendientesKeys.has(claveCliente))continue;
+
+            const idLocal="xcc-"+fecha.replace(/\//g,"-")+"-"+normalizarTexto(f.cliente).replace(/[^A-Z0-9]+/g,"-");
+            const idOperacion="opxcc-"+fecha.replace(/\//g,"-")+"-"+normalizarTexto(f.cliente).replace(/[^A-Z0-9]+/g,"-");
+
+            const r={
+                id:idLocal,
+                fecha,
+                cliente:f.cliente,
+                estibasDia:Number(f.estibasDia)||0,
+                inventarioActual:Number(f.inventarioActual)||0,
+                objetivo:Number(f.objetivo)||0,
+                diasCubiertos:f.estibasDia>0?(Number(f.inventarioActual)||0)/f.estibasDia:0,
+                faltante:(Number(f.objetivo)||0)-(Number(f.inventarioActual)||0),
+                creado:ahora,
+                sincronizado:false
+            };
+
+            const operacionXCC={
+                id:idOperacion,
+                payload:{...r,accion:"registrarInventarioXCC"}
+            };
+
+            await dbPutMultiple([
+                {store:"xcc",value:r},
+                {store:"operacionesXCC",value:operacionXCC}
+            ]);
+            pendientesKeys.add(claveCliente);
+            detallePendientesXCC.push(operacionXCC);
+            pendientesXCC++;
+        }
+
+        renderizarXCC();
+        actualizarEstadoConexion();
+        mensajeXCC(navigator.onLine?"✓ Guardado local. Sincronizando...":"✓ Guardado sin conexión. Quedó pendiente de sincronizar.","ok");
+
+        if(navigator.onLine){
+            await sincronizarXCCPendientes();
+            programarReintentoSincronizacion();
+        }
+        renderizarEstadoConexion();
+    }catch(error){
+        console.error("Error guardando XCC:",error);
+        mensajeXCC("❌ No se pudo guardar el inventario XCC","error");
+    }finally{
+        guardandoXCC=false;
+        if(boton){
+            boton.disabled=false;
+            boton.innerHTML=textoOriginal||"✓ GUARDAR INVENTARIO XCC";
+        }
+    }
 }
 async function sincronizarXCCPendientes(){
     if(!navigator.onLine||!dbOffline)return;
