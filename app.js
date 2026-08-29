@@ -2091,7 +2091,7 @@ async function generarReporteXCC(){
         {titulo:"ESTIBAS/DÍA",w:180},
         {titulo:"INVENTARIO ACTUAL",w:220},
         {titulo:"DÍAS CUBIERTOS",w:190},
-        {titulo:"OBJETIVO 15 DIAS",w:160},
+        {titulo:"OBJETIVO",w:160},
         {titulo:"FALTANTE",w:160}
     ];
 
