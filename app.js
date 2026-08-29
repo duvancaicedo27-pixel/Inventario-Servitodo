@@ -382,22 +382,23 @@ async function cargarInventario(){
         if(!dbOffline)await abrirDBOffline();
         const locales=await dbAll("movimientos");
         const localesHoy=locales.filter(r=>r.fecha===fechaTexto);
-        if(localesHoy.length){
-            registros=localesHoy.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
-            actualizarResumen();
-            actualizarMovimientos();
-        }
+
+        // Con internet, primero mostramos los datos reales del servidor.
+        // Los datos locales solo se usan como respaldo o para movimientos pendientes,
+        // evitando que una copia local antigua/corrupta aparezca por unos milisegundos.
         const actualizarRemoto=async()=>{
-            if(!navigator.onLine)return;
+            if(!navigator.onLine)return false;
             try{
                 const respuesta=await fetch(API_URL+"?accion=obtenerInventario&fecha="+encodeURIComponent(fechaTexto)+"&_="+Date.now(),{cache:"no-store"});
                 if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
                 const resultado=await respuesta.json();
                 if(!resultado.ok)throw new Error(resultado.error);
                 const servidor=resultado.registros||[];
-                const pendientes=registros.filter(r=>r.sincronizado===false);
+                const pendientes=localesHoy.filter(r=>r.sincronizado===false);
                 const fusion=[...servidor];
-                pendientes.forEach(p=>{if(!fusion.some(s=>(s.fila&&p.fila&&s.fila===p.fila)||(s.id&&p.id&&s.id===p.id)))fusion.push(p);});
+                pendientes.forEach(p=>{
+                    if(!fusion.some(s=>(s.fila&&p.fila&&s.fila===p.fila)||(s.id&&p.id&&s.id===p.id)))fusion.push(p);
+                });
                 registros=fusion;
                 for(const r of servidor){
                     r.sincronizado=true;
@@ -407,14 +408,25 @@ async function cargarInventario(){
                 actualizarResumen();
                 actualizarMovimientos();
                 sincronizarPendientes();
+                return true;
             }catch(error){
                 console.warn("No se pudo actualizar inventario remoto:",error);
-                if(!localesHoy.length)mostrarMensaje("❌ No se pudo cargar el inventario","error");
+                return false;
             }
         };
+
         if(navigator.onLine){
-            if(localesHoy.length)actualizarRemoto();
-            else await actualizarRemoto();
+            const remotoOK=await actualizarRemoto();
+            if(!remotoOK){
+                registros=localesHoy.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+                actualizarResumen();
+                actualizarMovimientos();
+                if(!localesHoy.length)mostrarMensaje("❌ No se pudo cargar el inventario","error");
+            }
+        }else{
+            registros=localesHoy.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+            actualizarResumen();
+            actualizarMovimientos();
         }
     }catch(error){
         console.error(error);
