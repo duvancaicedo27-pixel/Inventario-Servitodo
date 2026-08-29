@@ -620,6 +620,9 @@ function agregarEstilosMovimientos(){
                 grid-column:3;
                 grid-row:1;
             }
+            .movimiento-elemento strong{
+                white-space:nowrap;
+            }
             .movimiento-dato small{
                 font-size:8px;
                 margin-bottom:2px;
@@ -628,8 +631,9 @@ function agregarEstilosMovimientos(){
                 white-space:normal;
                 overflow:visible;
                 text-overflow:clip;
-                overflow-wrap:anywhere;
+                overflow-wrap:normal;
                 word-break:normal;
+                white-space:normal;
                 font-size:11px;
                 line-height:1.2;
                 text-align:center;
