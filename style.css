@@ -1300,3 +1300,30 @@ button{
         table-layout:fixed !important;
     }
 }
+
+/* Ajuste móvil exclusivo: títulos y valores de estado con más espacio. */
+@media (max-width: 600px){
+    #moduloInventario .inventory-table th:nth-child(1),
+    #moduloInventario .inventory-table td:nth-child(1){width:27%;}
+    #moduloInventario .inventory-table th:nth-child(2),
+    #moduloInventario .inventory-table td:nth-child(2){width:20%;}
+    #moduloInventario .inventory-table th:nth-child(3),
+    #moduloInventario .inventory-table td:nth-child(3){width:15%;}
+    #moduloInventario .inventory-table th:nth-child(4),
+    #moduloInventario .inventory-table td:nth-child(4){width:18%;}
+    #moduloInventario .inventory-table th:nth-child(5),
+    #moduloInventario .inventory-table td:nth-child(5){width:20%;}
+    #moduloInventario .inventory-table thead th:nth-child(n+3){
+        white-space:normal;
+        word-break:normal;
+        overflow-wrap:normal;
+        line-height:1.05;
+        padding-left:4px;
+        padding-right:4px;
+    }
+    #moduloInventario .inventory-table tbody td:nth-child(n+3){
+        white-space:normal;
+        word-break:normal;
+        overflow-wrap:anywhere;
+    }
+}

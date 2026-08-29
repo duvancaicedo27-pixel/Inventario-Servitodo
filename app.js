@@ -605,13 +605,19 @@ function agregarEstilosMovimientos(){
         .btn-eliminar-movimiento:hover{background:#c62828;color:white}
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
-            .movimiento-item{grid-template-columns:65px 1fr 80px 80px}
-            .movimiento-cliente{grid-column:2}
-            .movimiento-elemento{grid-column:2}
-            .movimiento-cantidad{grid-column:3}
-            .movimiento-estado{grid-column:4}
-            .btn-editar-movimiento{grid-column:3}
-            .btn-eliminar-movimiento{grid-column:4}
+            .movimiento-item{
+                grid-template-columns:58px minmax(0,1fr) 86px 86px;
+                gap:6px;
+                min-width:0;
+                width:100%;
+                box-sizing:border-box;
+            }
+            .movimiento-cliente{grid-column:2;min-width:0}
+            .movimiento-elemento{grid-column:2;min-width:0}
+            .movimiento-cantidad{grid-column:3;min-width:0}
+            .movimiento-estado{grid-column:4;min-width:0}
+            .btn-editar-movimiento{grid-column:3;min-width:0;width:100%;box-sizing:border-box;white-space:nowrap}
+            .btn-eliminar-movimiento{grid-column:4;min-width:0;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;white-space:nowrap}
         }
     `;
 
