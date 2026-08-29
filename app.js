@@ -606,13 +606,13 @@ function agregarEstilosMovimientos(){
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
             .movimiento-item{
-                grid-template-columns:62px minmax(0,1fr) minmax(78px,.9fr) 82px;
+                grid-template-columns:62px minmax(0,1.15fr) minmax(0,1fr) 82px 150px;
                 grid-template-areas:
-                    "hora cliente elemento estado"
-                    "hora cantidad cantidad estado"
-                    ". editar eliminar eliminar";
+                    "hora cliente elemento cantidad estado"
+                    "hora cliente elemento cantidad estado"
+                    ". editar editar eliminar eliminar";
                 align-items:center;
-                gap:7px 8px;
+                gap:7px 7px;
                 padding:12px 10px;
                 width:100%;
                 min-width:0;
@@ -621,7 +621,7 @@ function agregarEstilosMovimientos(){
             .movimiento-hora{grid-area:hora;align-self:start;padding-top:2px;font-size:12px;white-space:nowrap}
             .movimiento-cliente{grid-area:cliente;min-width:0}
             .movimiento-elemento{grid-area:elemento;min-width:0}
-            .movimiento-cantidad{grid-area:cantidad;justify-self:start;text-align:left;min-width:0;font-size:19px}
+            .movimiento-cantidad{grid-area:cantidad;min-width:0;text-align:center !important;font-size:18px;line-height:1.15;}
             .movimiento-estado{grid-area:estado;width:100%;min-width:0;align-self:center;box-sizing:border-box}
             .btn-editar-movimiento{grid-area:editar;width:100%;box-sizing:border-box;white-space:nowrap}
             .btn-eliminar-movimiento{grid-area:eliminar;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;white-space:nowrap}

@@ -1320,3 +1320,50 @@ button{
 .movimiento-cantidad{
     text-align:center !important;
 }
+
+/* AJUSTE FINAL INVENTARIO DIARIO - SOLO CELULAR
+   Más espacio para ESTADO; títulos y valores centrados. */
+@media(max-width:600px){
+    #moduloInventario .inventory-table{
+        width:100% !important;
+        min-width:0 !important;
+        max-width:100% !important;
+        table-layout:fixed !important;
+    }
+    #moduloInventario .inventory-table th,
+    #moduloInventario .inventory-table td{
+        min-width:0 !important;
+        box-sizing:border-box;
+        text-align:center !important;
+        overflow:hidden;
+    }
+    #moduloInventario .inventory-table thead th{
+        font-size:11px !important;
+        line-height:1.12 !important;
+        padding:8px 4px !important;
+        white-space:normal !important;
+        overflow-wrap:normal !important;
+        word-break:normal !important;
+    }
+    #moduloInventario .inventory-table tbody td{
+        font-size:11px !important;
+        line-height:1.2 !important;
+        padding:10px 4px !important;
+        overflow-wrap:normal !important;
+        word-break:normal !important;
+        white-space:normal !important;
+    }
+    #moduloInventario .inventory-table th:nth-child(1),
+    #moduloInventario .inventory-table td:nth-child(1){width:34% !important;}
+    #moduloInventario .inventory-table th:nth-child(2),
+    #moduloInventario .inventory-table td:nth-child(2){width:25% !important;}
+    #moduloInventario .inventory-table th:nth-child(3),
+    #moduloInventario .inventory-table td:nth-child(3){width:13.666% !important;}
+    #moduloInventario .inventory-table th:nth-child(4),
+    #moduloInventario .inventory-table td:nth-child(4){width:13.666% !important;}
+    #moduloInventario .inventory-table th:nth-child(5),
+    #moduloInventario .inventory-table td:nth-child(5){width:13.668% !important;}
+    #moduloInventario .inventory-table .estado-heading{
+        text-align:center !important;
+    }
+}
