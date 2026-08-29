@@ -1406,3 +1406,41 @@ button{
         line-height:1.2;
     }
 }
+
+/* SOLO móvil: dar espacio real a los títulos y valores de ESTADO. */
+@media(max-width:600px){
+    .inventory-table{
+        min-width:0 !important;
+        width:100% !important;
+        table-layout:fixed;
+    }
+    .inventory-table th,
+    .inventory-table td{
+        box-sizing:border-box;
+        padding-left:6px;
+        padding-right:6px;
+    }
+    .inventory-table thead th{
+        white-space:normal;
+        overflow-wrap:normal;
+        word-break:normal;
+        line-height:1.15;
+    }
+    .inventory-table thead tr:first-child th:nth-child(1){width:38%;}
+    .inventory-table thead tr:first-child th:nth-child(2){width:27%;}
+    .inventory-table thead tr:nth-child(2) th{width:11.666%;}
+    .inventory-table tbody td:nth-child(3),
+    .inventory-table tbody td:nth-child(4),
+    .inventory-table tbody td:nth-child(5){
+        white-space:normal;
+        overflow-wrap:normal;
+        word-break:normal;
+    }
+    .inventory-table .th-mono,
+    .inventory-table .th-proceso,
+    .inventory-table .th-total{
+        font-size:11px;
+        padding-left:4px;
+        padding-right:4px;
+    }
+}
