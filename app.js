@@ -413,9 +413,8 @@ async function cargarInventario(){
             }
         };
         if(navigator.onLine){
-            // Esperamos la respuesta remota antes de marcar la vista como lista.
-            // Esto evita mostrar durante unos milisegundos datos antiguos/caché.
-            await actualizarRemoto();
+            if(localesHoy.length)actualizarRemoto();
+            else await actualizarRemoto();
         }
     }catch(error){
         console.error(error);
@@ -580,13 +579,15 @@ function agregarEstilosMovimientos(){
     style.textContent=`
         #listaMovimientos{display:grid;gap:8px}
         .movimiento-item{display:grid;grid-template-columns:75px 1fr 1fr 100px 90px 90px;align-items:center;gap:10px;padding:12px;background:#f7f9fb;border:1px solid #dce4eb;border-radius:10px}
-        .movimiento-hora{font-size:12px;color:#74869a;font-weight:700}
+        .movimiento-hora{font-size:12px;color:#74869a;font-weight:700;white-space:nowrap}
         .movimiento-dato small{display:block;font-size:9px;color:#8493a2;font-weight:800;margin-bottom:3px}
         .movimiento-dato strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#173a5d;font-size:13px}
-        .movimiento-cantidad{text-align:center;font-weight:900}
-        .movimiento-estado{text-align:center;font-size:10px;font-weight:900;padding:7px 5px;border-radius:7px;color:white}
+        .movimiento-cantidad{text-align:center;font-weight:900;white-space:nowrap}
+        .movimiento-estado{text-align:center;font-size:10px;font-weight:900;padding:7px 5px;border-radius:7px;color:white;white-space:nowrap}
         .movimiento-estado.mono{background:#168548}
         .movimiento-estado.proceso{background:#145db7}
+        .movimiento-datos-pareja{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;min-width:0;align-items:center}
+        .movimiento-datos-pareja .movimiento-dato{text-align:center;min-width:0}
         .btn-editar-movimiento,.btn-eliminar-movimiento{border:0;border-radius:8px;padding:9px;cursor:pointer;font-weight:800}
         .btn-editar-movimiento{background:#e8f1fb;color:#145db7}
         .btn-eliminar-movimiento{background:#fbeaea;color:#c62828}
@@ -595,58 +596,33 @@ function agregarEstilosMovimientos(){
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
             .movimiento-item{
-                grid-template-columns:65px minmax(0,1fr) 78px 92px;
+                grid-template-columns:54px minmax(0,1fr) 58px 74px;
                 grid-template-rows:auto auto;
                 align-items:center;
-                gap:10px;
-            }
-            .movimiento-hora{
-                grid-column:1;
-                grid-row:1;
-                white-space:nowrap;
-                text-align:left;
-            }
-            .movimiento-cliente{
-                grid-column:2;
-                grid-row:1;
-                min-width:0;
-                text-align:center;
-            }
-            .movimiento-elemento{
-                grid-column:2;
-                grid-row:1;
-                transform:translateY(18px);
-                min-width:0;
-                text-align:center;
-            }
-            .movimiento-cantidad{
-                grid-column:3;
-                grid-row:1;
-                text-align:center;
-                white-space:nowrap;
-            }
-            .movimiento-estado{
-                grid-column:4;
-                grid-row:1;
-                min-width:0;
-                text-align:center;
-            }
-            .btn-editar-movimiento,
-            .btn-eliminar-movimiento{
-                grid-row:2;
+                column-gap:7px;
+                row-gap:9px;
+                padding:10px 9px 9px;
                 width:100%;
                 min-width:0;
-                height:42px;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                padding:8px 10px;
-                white-space:nowrap;
-                overflow:hidden;
-                text-overflow:ellipsis;
             }
-            .btn-editar-movimiento{grid-column:1 / span 2;}
-            .btn-eliminar-movimiento{grid-column:3 / span 2;}
+            .movimiento-hora{grid-column:1;grid-row:1;align-self:center;text-align:left;font-size:10px;}
+            .movimiento-datos-pareja{grid-column:2;grid-row:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:1fr;gap:8px;min-width:0;width:100%;align-items:center;}
+            .movimiento-datos-pareja .movimiento-dato{grid-column:auto!important;grid-row:1!important;min-width:0;width:100%;text-align:center;}
+            .movimiento-dato small{font-size:7.5px;margin-bottom:2px;line-height:1;}
+            .movimiento-dato strong{font-size:10px;line-height:1.15;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:normal;overflow-wrap:normal;}
+            .movimiento-cantidad{grid-column:3;grid-row:1;font-size:11px;text-align:center;}
+            .movimiento-estado{grid-column:4;grid-row:1;width:100%;min-width:0;padding:6px 3px;font-size:8.5px;line-height:1.15;text-align:center;}
+            .btn-editar-movimiento{grid-column:1 / 3;grid-row:2;width:100%;min-width:0;padding:8px 6px;}
+            .btn-eliminar-movimiento{grid-column:3 / 5;grid-row:2;width:100%;min-width:0;padding:8px 6px;}
+        }
+        @media(max-width:360px){
+            .movimiento-item{grid-template-columns:50px minmax(0,1fr) 50px 70px;column-gap:6px;padding:9px 7px 8px;}
+            .movimiento-datos-pareja{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:6px;}
+            .movimiento-dato small{font-size:7px;}
+            .movimiento-dato strong{font-size:9px;}
+            .movimiento-hora{font-size:9.5px;}
+            .movimiento-cantidad{font-size:10.5px;}
+            .movimiento-estado{font-size:8px;}
         }
     `;
 
@@ -675,13 +651,15 @@ function actualizarMovimientos(){
 
         item.innerHTML=`
             <div class="movimiento-hora">${escaparHTML(registro.hora||"--:--")}</div>
-            <div class="movimiento-dato movimiento-cliente">
-                <small>CLIENTE</small>
-                <strong>${escaparHTML(registro.cliente)}</strong>
-            </div>
-            <div class="movimiento-dato movimiento-elemento">
-                <small>ELEMENTO</small>
-                <strong>${escaparHTML(registro.elemento)}</strong>
+            <div class="movimiento-datos-pareja">
+                <div class="movimiento-dato movimiento-cliente">
+                    <small>CLIENTE</small>
+                    <strong>${escaparHTML(registro.cliente)}</strong>
+                </div>
+                <div class="movimiento-dato movimiento-elemento">
+                    <small>ELEMENTO</small>
+                    <strong>${escaparHTML(registro.elemento)}</strong>
+                </div>
             </div>
             <div class="movimiento-cantidad">${formatear(registro.cantidad)}</div>
             <div class="movimiento-estado ${clase}">${escaparHTML(registro.estado)}</div>
@@ -1692,10 +1670,6 @@ async function iniciarAplicacion(){
     try{if(document.getElementById("tablaXCC"))await cargarDatosXCC();}catch(error){console.warn("Error cargando XCC:",error);}
     actualizarEstadoConexion();
     if(navigator.onLine){try{await sincronizarPendientes();}catch(error){console.warn("Error sincronizando pendientes:",error);}}
-
-    // Solo ahora liberamos la vista: todos los datos iniciales ya fueron cargados.
-    document.documentElement.classList.remove("app-booting");
-    document.documentElement.classList.add("app-ready");
 }
 
 // =====================================================
