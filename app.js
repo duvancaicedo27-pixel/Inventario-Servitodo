@@ -497,13 +497,36 @@ function agregarEstilosMovimientos(){
         .btn-eliminar-movimiento:hover{background:#c62828;color:white}
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
-            .movimiento-item{grid-template-columns:65px 1fr 80px 80px}
-            .movimiento-cliente{grid-column:2}
-            .movimiento-elemento{grid-column:2}
-            .movimiento-cantidad{grid-column:3}
-            .movimiento-estado{grid-column:4}
-            .btn-editar-movimiento{grid-column:3}
-            .btn-eliminar-movimiento{grid-column:4}
+            .movimiento-item{
+                display:grid;
+                grid-template-columns:68px minmax(0,1fr) 86px 108px;
+                grid-template-areas:
+                    "hora info cantidad estado"
+                    "hora info cantidad estado"
+                    "editar editar eliminar eliminar";
+                align-items:start;
+                gap:8px 7px;
+                padding:12px;
+                box-sizing:border-box;
+                min-width:0;
+                width:100%;
+            }
+            .movimiento-hora{grid-area:hora; padding-top:2px; white-space:nowrap;}
+            .movimiento-cliente{grid-area:info; min-width:0;}
+            .movimiento-elemento{grid-area:info; min-width:0; margin-top:46px;}
+            .movimiento-cliente strong,.movimiento-elemento strong{
+                white-space:normal !important;
+                overflow:visible !important;
+                text-overflow:clip !important;
+                overflow-wrap:normal !important;
+                word-break:normal !important;
+                hyphens:none !important;
+                line-height:1.18;
+            }
+            .movimiento-cantidad{grid-area:cantidad; align-self:center; text-align:center !important; padding-top:18px;}
+            .movimiento-estado{grid-area:estado; align-self:start; width:100%; box-sizing:border-box;}
+            .btn-editar-movimiento{grid-area:editar; width:100%; box-sizing:border-box; min-width:0;}
+            .btn-eliminar-movimiento{grid-area:eliminar; width:100%; box-sizing:border-box; min-width:0; display:flex; align-items:center; justify-content:center;}
         }
     `;
 

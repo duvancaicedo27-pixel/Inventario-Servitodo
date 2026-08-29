@@ -953,187 +953,80 @@ button{
 @media(max-width:850px){.modulos{padding:0 12px;}.modulo-btn{flex:1;padding:11px 10px;font-size:10px;}.xcc-fecha{align-items:flex-start;flex-direction:column;gap:5px;}.xcc-actions{flex-direction:column;}.xcc-actions .primary-button,.xcc-actions .report-button{width:100%;}}
 
 
-/* =========================================================
-   AJUSTE REAL MOBILE — TABLA RESUMEN + MOVIMIENTOS
-   Solo aplica a pantallas pequeñas. PC no se modifica.
-   ========================================================= */
-@media (max-width: 600px){
+/* =====================================================
+   AJUSTE FINAL REAL - INVENTARIO DIARIO EN CELULAR
+   Solo afecta max-width:600px. PC permanece intacto.
+===================================================== */
+@media (max-width:600px){
+    html, body{width:100%;max-width:100%;overflow-x:hidden !important;}
+    #moduloInventario{width:100%;max-width:100%;min-width:0;overflow:visible;}
+    #moduloInventario .summary-card{width:100%;max-width:100%;min-width:0;overflow:hidden;}
 
-    /* ---------- TABLA INVENTARIO ACUMULADO ---------- */
-    #tablaResumen{
-        width:100%;
-    }
-
-    .summary-card .table-container{
-        width:100%;
-        max-width:100%;
-        overflow:hidden;
-    }
-
-    .summary-card .inventory-table{
-        width:100%;
+    #moduloInventario .table-container{
+        width:100% !important;
+        max-width:100% !important;
         min-width:0 !important;
-        table-layout:fixed;
-        border-collapse:collapse;
-    }
-
-    .summary-card .inventory-table th,
-    .summary-card .inventory-table td{
+        overflow:hidden !important;
         box-sizing:border-box;
-        text-align:center;
+    }
+    #moduloInventario .inventory-table{
+        width:100% !important;
+        max-width:100% !important;
+        min-width:0 !important;
+        table-layout:fixed !important;
+        border-collapse:separate;
+        box-sizing:border-box;
+    }
+    #moduloInventario .inventory-table th,
+    #moduloInventario .inventory-table td{
+        min-width:0 !important;
+        box-sizing:border-box;
+        text-align:center !important;
         vertical-align:middle;
-        padding:10px 5px;
-        overflow:visible;
     }
-
-    /* 27% Cliente / 20% Elemento / 53% Estado */
-    .summary-card .inventory-table thead tr:first-child th:nth-child(1){
-        width:27%;
-    }
-    .summary-card .inventory-table thead tr:first-child th:nth-child(2){
-        width:20%;
-    }
-    .summary-card .inventory-table thead tr:first-child th:nth-child(3){
-        width:53%;
-    }
-
-    .summary-card .inventory-table thead tr:nth-child(2) th{
-        width:17.666%;
-    }
-
-    .summary-card .inventory-table thead th{
-        font-size:11px;
-        line-height:1.08;
-        white-space:normal;
-        word-break:normal;
-        overflow-wrap:normal;
-        height:auto;
-    }
-
-    .summary-card .inventory-table tbody td{
-        font-size:14px;
-        line-height:1.15;
-        white-space:normal;
-        word-break:normal;
-        overflow-wrap:anywhere;
-    }
-
-    .summary-card .inventory-table tbody td:nth-child(3),
-    .summary-card .inventory-table tbody td:nth-child(4),
-    .summary-card .inventory-table tbody td:nth-child(5){
-        white-space:nowrap;
-        overflow:visible;
-        font-variant-numeric:tabular-nums;
-    }
-
-    /* Cliente y elemento siempre centrados y legibles */
-    .summary-card .inventory-table tbody td:nth-child(1),
-    .summary-card .inventory-table tbody td:nth-child(2){
-        text-align:center;
-    }
-
-    /* ---------- MOVIMIENTOS DEL DÍA ---------- */
-    #listaMovimientos{
-        width:100%;
-        display:grid;
-        gap:10px;
-    }
-
-    .movimiento-item{
-        display:grid !important;
-        grid-template-columns:58px minmax(0,1fr) 72px 118px !important;
-        grid-template-areas:
-            "hora cliente cantidad estado"
-            "hora elemento cantidad estado"
-            ". editar editar eliminar" !important;
-        align-items:center !important;
-        gap:6px 8px !important;
-        width:100% !important;
-        min-width:0 !important;
-        box-sizing:border-box;
-        padding:12px 10px !important;
-    }
-
-    .movimiento-hora{
-        grid-area:hora !important;
-        align-self:start;
-        padding-top:2px;
-        text-align:left;
-        white-space:nowrap;
-        font-size:12px !important;
-    }
-
-    .movimiento-cliente{
-        grid-area:cliente !important;
-        min-width:0 !important;
-    }
-
-    .movimiento-elemento{
-        grid-area:elemento !important;
-        min-width:0 !important;
-    }
-
-    .movimiento-cantidad{
-        grid-area:cantidad !important;
-        min-width:0 !important;
-        text-align:center !important;
-        white-space:nowrap;
-        font-size:16px !important;
-    }
-
-    .movimiento-estado{
-        grid-area:estado !important;
-        min-width:0 !important;
-        width:100% !important;
-        text-align:center !important;
-        align-self:center;
-        box-sizing:border-box;
-        white-space:normal !important;
-        line-height:1.15;
-    }
-
-    .movimiento-dato{
-        min-width:0 !important;
-    }
-
-    .movimiento-dato small{
+    #moduloInventario .inventory-table thead th{
+        padding:9px 3px !important;
         font-size:9px !important;
-        line-height:1;
-        margin-bottom:3px;
-    }
-
-    .movimiento-dato strong{
-        display:block;
-        color:#173a5d;
-        font-size:13px !important;
-        line-height:1.18 !important;
+        line-height:1.15 !important;
         white-space:normal !important;
-        overflow:visible !important;
-        text-overflow:clip !important;
+        overflow-wrap:normal !important;
         word-break:normal !important;
-        overflow-wrap:anywhere !important;
-        hyphens:none !important;
     }
+    #moduloInventario .inventory-table tbody td{
+        padding:11px 4px !important;
+        font-size:10.5px !important;
+        line-height:1.2 !important;
+        white-space:normal;
+    }
+    #moduloInventario .inventory-table th:nth-child(1),
+    #moduloInventario .inventory-table td:nth-child(1){width:27% !important;}
+    #moduloInventario .inventory-table th:nth-child(2),
+    #moduloInventario .inventory-table td:nth-child(2){width:20% !important;}
+    #moduloInventario .inventory-table th:nth-child(3),
+    #moduloInventario .inventory-table td:nth-child(3){width:17.5% !important;}
+    #moduloInventario .inventory-table th:nth-child(4),
+    #moduloInventario .inventory-table td:nth-child(4){width:17.5% !important;}
+    #moduloInventario .inventory-table th:nth-child(5),
+    #moduloInventario .inventory-table td:nth-child(5){width:18% !important;}
 
-    .btn-editar-movimiento{
-        grid-area:editar !important;
-        width:100% !important;
-        min-width:0 !important;
-        box-sizing:border-box;
-        white-space:nowrap;
-        text-align:center;
+    #moduloInventario .inventory-table tbody td:nth-child(1){
+        text-align:left !important;
+        overflow-wrap:normal !important;
+        word-break:normal !important;
     }
-
-    .btn-eliminar-movimiento{
-        grid-area:eliminar !important;
-        width:100% !important;
-        min-width:0 !important;
-        box-sizing:border-box;
-        white-space:nowrap;
-        text-align:center;
+    #moduloInventario .inventory-table tbody td:nth-child(2){
+        text-align:center !important;
+        white-space:nowrap !important;
+        overflow:hidden;
+        text-overflow:clip;
     }
-
-    .btn-eliminar-movimiento::after{
-        content:" Eliminar";
+    #moduloInventario .inventory-table tbody td:nth-child(3),
+    #moduloInventario .inventory-table tbody td:nth-child(4),
+    #moduloInventario .inventory-table tbody td:nth-child(5){
+        white-space:nowrap !important;
+        overflow:hidden;
+        text-overflow:clip;
+        font-weight:900;
     }
+    #moduloInventario .inventory-table .empty{padding:20px 8px !important;}
 }
