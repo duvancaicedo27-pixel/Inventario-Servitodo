@@ -605,13 +605,34 @@ function agregarEstilosMovimientos(){
         .btn-eliminar-movimiento:hover{background:#c62828;color:white}
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
-            .movimiento-item{grid-template-columns:65px 1fr 80px 80px}
-            .movimiento-cliente{grid-column:2}
-            .movimiento-elemento{grid-column:2}
-            .movimiento-cantidad{grid-column:3}
-            .movimiento-estado{grid-column:4}
-            .btn-editar-movimiento{grid-column:3}
-            .btn-eliminar-movimiento{grid-column:4}
+            .movimiento-item{
+                grid-template-columns:62px minmax(0,1fr) minmax(78px,.9fr) 82px;
+                grid-template-areas:
+                    "hora cliente elemento estado"
+                    "hora cantidad cantidad estado"
+                    ". editar eliminar eliminar";
+                align-items:center;
+                gap:7px 8px;
+                padding:12px 10px;
+                width:100%;
+                min-width:0;
+                box-sizing:border-box;
+            }
+            .movimiento-hora{grid-area:hora;align-self:start;padding-top:2px;font-size:12px;white-space:nowrap}
+            .movimiento-cliente{grid-area:cliente;min-width:0}
+            .movimiento-elemento{grid-area:elemento;min-width:0}
+            .movimiento-cantidad{grid-area:cantidad;justify-self:start;text-align:left;min-width:0;font-size:19px}
+            .movimiento-estado{grid-area:estado;width:100%;min-width:0;align-self:center;box-sizing:border-box}
+            .btn-editar-movimiento{grid-area:editar;width:100%;box-sizing:border-box;white-space:nowrap}
+            .btn-eliminar-movimiento{grid-area:eliminar;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;white-space:nowrap}
+            .movimiento-dato strong{
+                white-space:normal !important;
+                overflow:visible !important;
+                text-overflow:clip !important;
+                overflow-wrap:anywhere !important;
+                word-break:normal !important;
+                line-height:1.2;
+            }
         }
     `;
 
