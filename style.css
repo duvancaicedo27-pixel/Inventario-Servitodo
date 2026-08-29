@@ -1301,65 +1301,86 @@ button{
     }
 }
 
-/* Ajuste móvil exclusivo: títulos y valores de estado con más espacio. */
+/* Ajuste móvil definitivo: más espacio para Moño, Proceso y Suma total. */
 @media (max-width: 600px){
-    /* Solo móvil: más ancho para los títulos y valores de estado. */
     #moduloInventario .inventory-table th:nth-child(1),
-    #moduloInventario .inventory-table td:nth-child(1){width:24%;}
+    #moduloInventario .inventory-table td:nth-child(1){width:30%;}
     #moduloInventario .inventory-table th:nth-child(2),
-    #moduloInventario .inventory-table td:nth-child(2){width:18%;}
+    #moduloInventario .inventory-table td:nth-child(2){width:22%;}
     #moduloInventario .inventory-table th:nth-child(3),
-    #moduloInventario .inventory-table td:nth-child(3){width:19.33%;}
+    #moduloInventario .inventory-table td:nth-child(3){width:16%;}
     #moduloInventario .inventory-table th:nth-child(4),
-    #moduloInventario .inventory-table td:nth-child(4){width:19.33%;}
+    #moduloInventario .inventory-table td:nth-child(4){width:16%;}
     #moduloInventario .inventory-table th:nth-child(5),
-    #moduloInventario .inventory-table td:nth-child(5){width:19.34%;}
+    #moduloInventario .inventory-table td:nth-child(5){width:16%;}
 
     #moduloInventario .inventory-table thead th:nth-child(n+3){
         white-space:normal;
         word-break:normal;
         overflow-wrap:normal;
-        line-height:1.08;
-        padding-left:5px;
-        padding-right:5px;
+        line-height:1.15;
+        padding-left:4px;
+        padding-right:4px;
         font-size:10px;
+        letter-spacing:-.1px;
     }
 
     #moduloInventario .inventory-table tbody td:nth-child(n+3){
         white-space:normal;
         word-break:normal;
-        overflow-wrap:break-word;
+        overflow-wrap:normal;
         line-height:1.15;
-        padding-left:3px;
-        padding-right:3px;
+        padding-left:4px;
+        padding-right:4px;
         font-size:12px;
     }
 }
 
-/* Solo móvil: redistribuye acciones para no tapar el nombre del cliente. */
+/* Solo móvil: reorganiza movimientos para que el cliente quede completamente legible. */
 @media(max-width:800px){
     .movimiento-item{
-        grid-template-columns:60px minmax(0,1fr) 98px;
-        gap:7px;
+        grid-template-columns:65px minmax(0,1fr) 104px;
+        grid-template-areas:
+            "hora cliente cantidad"
+            "hora elemento estado"
+            ". editar eliminar";
+        grid-auto-rows:auto;
+        gap:7px 8px;
         min-width:0;
         width:100%;
         box-sizing:border-box;
     }
 
-    .movimiento-cliente,
-    .movimiento-elemento{
-        grid-column:2;
+    .movimiento-hora{
+        grid-area:hora;
+        align-self:start;
+        padding-top:2px;
+    }
+
+    .movimiento-cliente{
+        grid-area:cliente;
         min-width:0;
     }
 
-    .movimiento-cantidad,
-    .movimiento-estado{
-        grid-column:3;
+    .movimiento-elemento{
+        grid-area:elemento;
         min-width:0;
+    }
+
+    .movimiento-cantidad{
+        grid-area:cantidad;
+        min-width:0;
+        align-self:center;
+    }
+
+    .movimiento-estado{
+        grid-area:estado;
+        min-width:0;
+        align-self:center;
     }
 
     .btn-editar-movimiento{
-        grid-column:2;
+        grid-area:editar;
         min-width:0;
         width:100%;
         box-sizing:border-box;
@@ -1367,7 +1388,7 @@ button{
     }
 
     .btn-eliminar-movimiento{
-        grid-column:3;
+        grid-area:eliminar;
         min-width:0;
         width:100%;
         box-sizing:border-box;
