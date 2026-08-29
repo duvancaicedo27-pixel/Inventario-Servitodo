@@ -384,8 +384,16 @@ async function cargarInventario(){
         const localesHoy=locales.filter(r=>r.fecha===fechaTexto);
         if(localesHoy.length){
             registros=localesHoy.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
-            actualizarResumen();
-            actualizarMovimientos();
+            // Cuando hay internet, NO renderizar los datos locales todavía.
+            // Primero se carga el inventario real desde Sheets para evitar
+            // el parpadeo de valores antiguos durante el arranque.
+            if(!navigator.onLine){
+                actualizarResumen();
+                actualizarMovimientos();
+            }else{
+                const tabla=document.getElementById("listaMovimientos");
+                if(tabla)tabla.innerHTML="";
+            }
         }
         const actualizarRemoto=async()=>{
             if(!navigator.onLine)return;
@@ -413,8 +421,10 @@ async function cargarInventario(){
             }
         };
         if(navigator.onLine){
-            if(localesHoy.length)actualizarRemoto();
-            else await actualizarRemoto();
+            // Esperar la respuesta real antes de pintar Inventario Diario.
+            // Así nunca se muestran primero datos locales antiguos y luego
+            // los valores reales de Sheets.
+            await actualizarRemoto();
         }
     }catch(error){
         console.error(error);
@@ -2056,7 +2066,7 @@ async function generarReporteXCC(){
     const centroX=headerX+bloqueFecha+26;
     c.fillStyle=blanco;
     c.font="bold 22px Arial";
-    c.fillText("Inventario Diario Estibas XCC",centroX,48);
+    c.fillText("INVENTARIO DIARIO",centroX,48);
 
     c.font="bold 58px Arial";
     c.fillText("SERVITODO",centroX,99);
