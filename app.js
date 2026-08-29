@@ -689,14 +689,45 @@ function agregarEstilosMovimientos(){
         .btn-editar-movimiento:hover{background:#145db7;color:white}
         .btn-eliminar-movimiento:hover{background:#c62828;color:white}
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
+        /* Botones siempre en una fila inferior; información arriba. */
+        .movimiento-item{
+            grid-template-columns:90px minmax(180px,1.5fr) minmax(130px,1fr) 110px 140px;
+            grid-template-areas:
+                "hora cliente cliente cantidad estado"
+                "hora elemento elemento cantidad estado"
+                "editar editar editar eliminar eliminar";
+            align-items:center;
+            row-gap:10px;
+        }
+        .movimiento-hora{grid-area:hora;align-self:start;padding-top:4px}
+        .movimiento-cliente{grid-area:cliente;min-width:0}
+        .movimiento-elemento{grid-area:elemento;min-width:0}
+        .movimiento-cantidad{grid-area:cantidad;text-align:center}
+        .movimiento-estado{grid-area:estado}
+        .btn-editar-movimiento{grid-area:editar;width:100%;margin-top:4px}
+        .btn-eliminar-movimiento{grid-area:eliminar;width:100%;margin-top:4px}
+        .movimiento-dato strong{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.2}
         @media(max-width:800px){
-            .movimiento-item{grid-template-columns:65px 1fr 80px 80px}
-            .movimiento-cliente{grid-column:2}
-            .movimiento-elemento{grid-column:2}
-            .movimiento-cantidad{grid-column:3}
-            .movimiento-estado{grid-column:4}
-            .btn-editar-movimiento{grid-column:3}
-            .btn-eliminar-movimiento{grid-column:4}
+            .movimiento-item{
+                grid-template-columns:70px minmax(0,1fr) 90px 100px;
+                grid-template-areas:
+                    "hora cliente cantidad estado"
+                    "hora elemento cantidad estado"
+                    "editar editar eliminar eliminar";
+                gap:9px;
+                padding:12px;
+            }
+            .movimiento-cantidad,.movimiento-estado{align-self:center}
+            .movimiento-estado{font-size:10px;padding:9px 6px}
+            .btn-editar-movimiento,.btn-eliminar-movimiento{min-width:0;margin-top:3px;padding:10px 8px}
+        }
+        @media(max-width:430px){
+            .movimiento-item{grid-template-columns:62px minmax(0,1fr) 78px 88px;padding:10px;gap:8px}
+            .movimiento-hora{font-size:11px}
+            .movimiento-dato small{font-size:8px}
+            .movimiento-dato strong{font-size:12px}
+            .movimiento-cantidad{font-size:16px}
+            .movimiento-estado{font-size:9px}
         }
     `;
 
