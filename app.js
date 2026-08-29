@@ -314,163 +314,66 @@ window.addEventListener("offline",()=>{clearInterval(intervaloSincronizacion);in
 
 async function cargarCatalogos(){
     let cache=null;
-
-    const pintarCatalogo=()=>{
-        clienteSelect.innerHTML="";
-        const inicial=document.createElement("option");
-        inicial.value="";
-        inicial.textContent="Seleccionar cliente";
-        clienteSelect.appendChild(inicial);
-
-        clientes.forEach(cliente=>{
-            const option=document.createElement("option");
-            option.value=cliente;
-            option.textContent=cliente;
-            clienteSelect.appendChild(option);
-        });
-
-        elementoBusqueda.disabled=true;
-        elementoBusqueda.placeholder="Primero selecciona un cliente";
-    };
-
-    const guardarCatalogo=async()=>{
-        const catalogo={id:"principal",clientes,elementos};
-        try{localStorage.setItem("servitodo_catalogos",JSON.stringify(catalogo));}catch(e){}
-        if(dbOffline){
-            try{await dbPut("catalogos",catalogo);}catch(e){console.warn("No se pudo guardar catálogo local:",e);}
-        }
-    };
-
-    const cargarJSONP=()=>new Promise((resolve,reject)=>{
-        const callbackName="__servitodoCatalogos_"+Date.now()+"_"+Math.random().toString(36).slice(2);
-        let terminado=false;
-        const script=document.createElement("script");
-
-        const limpiar=()=>{
-            clearTimeout(timeout);
-            try{delete window[callbackName];}catch(e){window[callbackName]=undefined;}
-            script.remove();
-        };
-
-        const timeout=setTimeout(()=>{
-            if(terminado)return;
-            terminado=true;
-            limpiar();
-            reject(new Error("Tiempo agotado cargando clientes"));
-        },10000);
-
-        window[callbackName]=(resultado)=>{
-            if(terminado)return;
-            terminado=true;
-            limpiar();
-            if(!resultado||!resultado.ok){
-                reject(new Error(resultado?.error||"No se pudieron cargar los clientes"));
-                return;
-            }
-            resolve(resultado);
-        };
-
-        script.onerror=()=>{
-            if(terminado)return;
-            terminado=true;
-            limpiar();
-            reject(new Error("No se pudo conectar con Google Apps Script"));
-        };
-
-        script.src=API_URL+"?accion=obtenerCatalogos&callback="+encodeURIComponent(callbackName)+"&_="+Date.now();
-        document.head.appendChild(script);
-    });
-
     try{
-        if(!dbOffline)await abrirDBOffline();
-
-        // 1) Mostrar inmediatamente el último catálogo disponible.
-        try{
-            const locales=await dbAll("catalogos");
-            cache=locales.find(x=>x.id==="principal")||null;
-        }catch(e){console.warn("No se pudo leer catálogo local:",e);}
-
+        if(dbOffline){
+            try{
+                const locales=await dbAll("catalogos");
+                cache=locales.find(x=>x.id==="principal")||null;
+            }catch(e){console.warn("No se pudo leer catálogo local:",e);}
+        }
         if(!cache){
             try{
                 const localStorageCache=localStorage.getItem("servitodo_catalogos");
                 if(localStorageCache)cache=JSON.parse(localStorageCache);
             }catch(e){console.warn("No se pudo leer catálogo de localStorage:",e);}
         }
-
+        const pintarCatalogo=()=>{
+            clienteSelect.innerHTML="";
+            const inicial=document.createElement("option");
+            inicial.value="";
+            inicial.textContent="Seleccionar cliente";
+            clienteSelect.appendChild(inicial);
+            clientes.forEach(cliente=>{
+                const option=document.createElement("option");
+                option.value=cliente;
+                option.textContent=cliente;
+                clienteSelect.appendChild(option);
+            });
+            elementoBusqueda.disabled=true;
+            elementoBusqueda.placeholder="Primero selecciona un cliente";
+        };
         if(cache){
-            clientes=Array.isArray(cache.clientes)?cache.clientes:[];
-            elementos=Array.isArray(cache.elementos)?cache.elementos:[];
+            clientes=cache.clientes||[];
+            elementos=cache.elementos||[];
             pintarCatalogo();
         }
-
-        // 2) Actualizar desde servidor sin borrar un catálogo local válido.
         if(navigator.onLine){
-            let resultado=null;
-
-            try{
-                const respuesta=await fetch(
-                    API_URL+"?accion=obtenerCatalogos&_="+Date.now(),
-                    {cache:"no-store"}
-                );
-
-                if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
-
-                const data=await respuesta.json();
-
-                if(data&&data.ok){
-                    resultado=data;
-                }else{
-                    throw new Error(data?.error||"Respuesta inválida del catálogo");
-                }
-            }catch(errorFetch){
-                console.warn("Fetch de catálogo falló, probando JSONP:",errorFetch);
-
+            const actualizarRemoto=async()=>{
                 try{
-                    resultado=await cargarJSONP();
-                }catch(errorJSONP){
-                    console.warn("JSONP de catálogo también falló:",errorJSONP);
-                }
-            }
-
-            // Solo reemplazar el catálogo si el servidor realmente devolvió datos.
-            if(resultado&&resultado.ok){
-                const nuevosClientes=Array.isArray(resultado.clientes)?resultado.clientes:[];
-                const nuevosElementos=Array.isArray(resultado.elementos)?resultado.elementos:[];
-
-                if(nuevosClientes.length>0){
-                    clientes=nuevosClientes;
-                    elementos=nuevosElementos;
-                    await guardarCatalogo();
+                    const respuesta=await fetch(API_URL+"?accion=obtenerCatalogos&_="+Date.now(),{cache:"no-store"});
+                    if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
+                    const resultado=await respuesta.json();
+                    if(!resultado.ok)throw new Error(resultado.error||"La API devolvió un error");
+                    clientes=Array.isArray(resultado.clientes)?resultado.clientes:[];
+                    elementos=Array.isArray(resultado.elementos)?resultado.elementos:[];
+                    const catalogo={id:"principal",clientes,elementos};
+                    try{localStorage.setItem("servitodo_catalogos",JSON.stringify(catalogo));}catch(e){}
+                    if(dbOffline)try{await dbPut("catalogos",catalogo);}catch(e){console.warn("No se pudo guardar catálogo local:",e);}
                     pintarCatalogo();
-                }else if(!clientes.length){
-                    throw new Error("El servidor no devolvió clientes.");
+                }catch(error){
+                    console.warn("No se pudo consultar catálogo remoto:",error);
+                    if(!cache)throw error;
                 }
-            }else if(!clientes.length){
-                throw new Error("No hay catálogo disponible.");
-            }
-        }else if(!clientes.length){
+            };
+            if(cache)actualizarRemoto().catch(error=>console.warn(error));
+            else await actualizarRemoto();
+        }else if(!cache){
             throw new Error("No hay catálogos guardados localmente.");
         }
-
         if(!clientes.length)throw new Error("No hay clientes disponibles.");
     }catch(error){
         console.error("Error cargando catálogos:",error);
-
-        // Último intento: volver a dibujar el cache aunque la actualización remota falle.
-        if(cache){
-            clientes=Array.isArray(cache.clientes)?cache.clientes:[];
-            elementos=Array.isArray(cache.elementos)?cache.elementos:[];
-            pintarCatalogo();
-        }
-
-        if(!clientes.length){
-            mostrarMensaje(
-                navigator.onLine
-                    ?"❌ No se pudieron cargar los clientes y elementos"
-                    :"⚠ Sin conexión: no hay datos locales de clientes y elementos",
-                "error"
-            );
-        }
+        mostrarMensaje(navigator.onLine?"❌ No se pudieron cargar los clientes y elementos":"⚠ Sin conexión: no hay datos locales de clientes y elementos","error");
     }
 }
 
@@ -689,103 +592,79 @@ function agregarEstilosMovimientos(){
         .btn-editar-movimiento:hover{background:#145db7;color:white}
         .btn-eliminar-movimiento:hover{background:#c62828;color:white}
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
-        /* Distribución final: información arriba y botones en una fila inferior. */
-        .movimiento-item{
-            display:grid;
-            grid-template-columns:110px minmax(0,1fr) 100px 145px;
-            grid-template-rows:auto auto auto;
-            grid-template-areas:
-                "hora cliente cantidad estado"
-                "hora elemento cantidad estado"
-                "editar editar eliminar eliminar";
-            align-items:center;
-            column-gap:16px;
-            row-gap:10px;
-            padding:14px;
-            min-width:0;
-        }
-        .movimiento-hora{
-            grid-area:hora;
-            align-self:start;
-            padding-top:5px;
-            white-space:nowrap;
-            font-size:14px;
-        }
-        .movimiento-cliente,
-        .movimiento-elemento{
-            min-width:0;
-            width:100%;
-            text-align:center;
-        }
-        .movimiento-cliente{grid-area:cliente}
-        .movimiento-elemento{grid-area:elemento}
-        .movimiento-dato small{
-            text-align:center;
-            white-space:nowrap;
-        }
-        .movimiento-dato strong{
-            white-space:normal;
-            overflow:visible;
-            text-overflow:clip;
-            overflow-wrap:break-word;
-            word-break:normal;
-            line-height:1.22;
-            text-align:center;
-        }
-        .movimiento-cantidad{
-            grid-area:cantidad;
-            text-align:center;
-            white-space:nowrap;
-            font-size:18px;
-        }
-        .movimiento-estado{
-            grid-area:estado;
-            width:100%;
-            text-align:center;
-            white-space:nowrap;
-        }
-        .btn-editar-movimiento,
-        .btn-eliminar-movimiento{
-            width:100%;
-            min-width:0;
-            margin-top:2px;
-            padding:11px 10px;
-            font-size:14px;
-        }
-        .btn-editar-movimiento{grid-area:editar}
-        .btn-eliminar-movimiento{grid-area:eliminar}
         @media(max-width:800px){
             .movimiento-item{
-                grid-template-columns:72px minmax(0,1fr) 78px 92px;
-                grid-template-rows:auto auto auto;
-                grid-template-areas:
-                    "hora cliente cantidad estado"
-                    "hora elemento cantidad estado"
-                    "editar editar eliminar eliminar";
+                grid-template-columns:72px minmax(0,1.35fr) minmax(0,1.15fr) 64px 96px;
+                grid-template-rows:auto auto;
+                align-items:center;
                 column-gap:8px;
-                row-gap:8px;
-                padding:11px;
+                row-gap:9px;
+                padding:11px 10px 10px;
             }
-            .movimiento-hora{font-size:12px}
-            .movimiento-dato small{font-size:8px;margin-bottom:3px}
-            .movimiento-dato strong{font-size:13px;line-height:1.2}
-            .movimiento-cantidad{font-size:16px}
-            .movimiento-estado{font-size:9px;padding:9px 5px}
-            .btn-editar-movimiento,.btn-eliminar-movimiento{padding:10px 8px;font-size:12px}
-        }
-        @media(max-width:430px){
-            .movimiento-item{
-                grid-template-columns:68px minmax(0,1fr) 68px 82px;
-                padding:10px;
-                column-gap:7px;
-                row-gap:7px;
+            .movimiento-hora{
+                grid-column:1;
+                grid-row:1;
+                white-space:nowrap;
+                text-align:left;
+                font-size:11px;
             }
-            .movimiento-hora{font-size:11px}
-            .movimiento-dato small{font-size:8px}
-            .movimiento-dato strong{font-size:12px}
-            .movimiento-cantidad{font-size:15px}
-            .movimiento-estado{font-size:9px;padding:8px 4px}
-            .btn-editar-movimiento,.btn-eliminar-movimiento{font-size:11px;padding:9px 6px}
+            .movimiento-dato{
+                min-width:0;
+                text-align:center;
+            }
+            .movimiento-cliente{
+                grid-column:2;
+                grid-row:1;
+            }
+            .movimiento-elemento{
+                grid-column:3;
+                grid-row:1;
+            }
+            .movimiento-dato small{
+                font-size:8px;
+                margin-bottom:2px;
+            }
+            .movimiento-dato strong{
+                white-space:normal;
+                overflow:visible;
+                text-overflow:clip;
+                overflow-wrap:anywhere;
+                word-break:normal;
+                font-size:11px;
+                line-height:1.2;
+                text-align:center;
+            }
+            .movimiento-cantidad{
+                grid-column:4;
+                grid-row:1;
+                text-align:center;
+                white-space:nowrap;
+                font-size:12px;
+            }
+            .movimiento-estado{
+                grid-column:5;
+                grid-row:1;
+                width:100%;
+                min-width:0;
+                padding:6px 4px;
+                font-size:9px;
+                line-height:1.15;
+                white-space:nowrap;
+            }
+            .btn-editar-movimiento{
+                grid-column:1 / 3;
+                grid-row:2;
+                width:100%;
+                min-width:0;
+                padding:8px 6px;
+            }
+            .btn-eliminar-movimiento{
+                grid-column:3 / 6;
+                grid-row:2;
+                width:100%;
+                min-width:0;
+                padding:8px 6px;
+            }
         }
     `;
 
