@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Inventario Diario Servitodo</title>
-<link rel="stylesheet" href="style.css?v=mobile-final-20260829">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top-header">
@@ -45,7 +45,7 @@
 </div>
 <div class="secondary-stats"><span>CLIENTES <strong id="totalClientes">0</strong></span><span>UNIDADES <strong id="totalUnidades">0</strong></span></div>
 <div class="subsection-header"><div><h3>Inventario acumulado</h3><p>Resumen agrupado por cliente y elemento.</p></div><button type="button" id="reporteBtn" class="report-button">▣ GENERAR REPORTE</button></div>
-<div class="table-container"><table class="inventory-table"><thead><tr><th rowspan="2">CLIENTE</th><th rowspan="2">ELEMENTO</th><th colspan="3" class="estado-heading">ESTADO</th></tr><tr><th class="th-mono">Moño</th><th class="th-proceso">Proceso</th><th class="th-total">Suma total</th></tr></thead><tbody id="tablaResumen"><tr><td colspan="5" class="empty">Aún no hay registros para este inventario.</td></tr></tbody></table></div>
+<div class="table-container"><table class="inventory-table"><colgroup><col class="col-cliente"><col class="col-elemento"><col class="col-mono"><col class="col-proceso"><col class="col-total"></colgroup><thead><tr><th rowspan="2">CLIENTE</th><th rowspan="2">ELEMENTO</th><th colspan="3" class="estado-heading">ESTADO</th></tr><tr><th class="th-mono">Moño</th><th class="th-proceso">Proceso</th><th class="th-total">Suma total</th></tr></thead><tbody id="tablaResumen"><tr><td colspan="5" class="empty">Aún no hay registros para este inventario.</td></tr></tbody></table></div>
 </section>
 </div>
 <div id="moduloXCC" style="display:none">
@@ -60,6 +60,6 @@
 </main>
 <div id="modalReporte" class="report-modal"><div class="report-modal-content"><div class="report-modal-header"><div><span>VISTA PREVIA</span><h2>Reporte diario</h2></div><button type="button" id="cerrarReporte" class="close-report">×</button></div><div class="report-preview"><img id="imagenReporte" alt="Vista previa del reporte"></div><button type="button" id="descargarReporte" class="download-report">↓ DESCARGAR PNG</button></div></div>
 <div id="modalReporteXCC" class="report-modal"><div class="report-modal-content"><div class="report-modal-header"><div><span>VISTA PREVIA</span><h2>Reporte Estibas XCC</h2></div><button type="button" id="cerrarReporteXCC" class="close-report">×</button></div><div class="report-preview"><img id="imagenReporteXCC" alt="Vista previa del reporte XCC"></div><button type="button" id="descargarReporteXCC" class="download-report">↓ DESCARGAR PNG</button></div></div>
-<script src="app.js?v=mobile-final-20260829"></script>
+<script src="app.js"></script>
 </body>
 </html>
