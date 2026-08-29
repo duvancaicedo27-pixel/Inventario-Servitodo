@@ -268,51 +268,10 @@ function cargarCatalogosJSONP(){
 }
 
 async function cargarCatalogos(){
-    try{
-        if(!dbOffline)await abrirDBOffline();
-        let cache=null;
-        try{
-            const locales=await dbAll("catalogos");
-            cache=locales.find(x=>x.id==="principal")||null;
-        }catch(error){
-            console.warn("No se pudo leer caché local de catálogos",error);
-        }
-
-        let resultado=null;
-
-        if(navigator.onLine){
-            try{
-                resultado=await cargarCatalogosJSONP();
-            }catch(jsonpError){
-                console.warn("JSONP falló, intentando fetch",jsonpError);
-                try{
-                    const respuesta=await fetch(API_URL+"?accion=obtenerCatalogos&ts="+Date.now(),{cache:"no-store"});
-                    const data=await respuesta.json();
-                    if(!data||!data.ok)throw new Error(data?.error||"Respuesta inválida del catálogo");
-                    resultado=data;
-                }catch(fetchError){
-                    console.warn("Fetch de catálogo también falló",fetchError);
-                }
-            }
-        }
-
-        if(resultado&&resultado.ok){
-            clientes=Array.isArray(resultado.clientes)?resultado.clientes:[];
-            elementos=Array.isArray(resultado.elementos)?resultado.elementos:[];
-            try{
-                await dbPut("catalogos",{id:"principal",clientes,elementos});
-            }catch(error){
-                console.warn("No se pudo guardar el catálogo local",error);
-            }
-        }else if(cache){
-            clientes=Array.isArray(cache.clientes)?cache.clientes:[];
-            elementos=Array.isArray(cache.elementos)?cache.elementos:[];
-        }else{
-            throw new Error("No hay catálogo disponible");
-        }
-
+    if(!clienteSelect)return;
+    const pintarCatalogo=()=>{
         clienteSelect.innerHTML=`<option value="">Seleccionar cliente</option>`;
-        clientes.forEach(cliente=>{
+        (Array.isArray(clientes)?clientes:[]).forEach(cliente=>{
             const option=document.createElement("option");
             option.value=cliente;
             option.textContent=cliente;
@@ -320,9 +279,57 @@ async function cargarCatalogos(){
         });
         elementoBusqueda.disabled=true;
         elementoBusqueda.placeholder="Primero selecciona un cliente";
+    };
+
+    let cache=null;
+    try{
+        if(!dbOffline)await abrirDBOffline();
+        try{
+            const locales=await dbAll("catalogos");
+            cache=locales.find(x=>x.id==="principal")||null;
+        }catch(e){console.warn("No se pudo leer catálogo IndexedDB",e);}
+        if(!cache){
+            try{
+                const local=localStorage.getItem("servitodo_catalogos");
+                if(local)cache=JSON.parse(local);
+            }catch(e){console.warn("No se pudo leer catálogo localStorage",e);}
+        }
+    }catch(e){console.warn("No se pudo preparar caché de catálogo",e);}
+
+    // Pintar inmediatamente lo disponible para que el cliente sea seleccionable sin esperar red.
+    if(cache && Array.isArray(cache.clientes)){
+        clientes=cache.clientes;
+        elementos=Array.isArray(cache.elementos)?cache.elementos:[];
+        pintarCatalogo();
+    }
+
+    if(!navigator.onLine){
+        if(!cache){
+            clienteSelect.innerHTML=`<option value="">Sin catálogo local</option>`;
+            mostrarMensaje("⚠ Sin conexión: no hay datos locales de clientes y elementos","error");
+        }
+        return;
+    }
+
+    try{
+        const respuesta=await fetch(API_URL+"?accion=obtenerCatalogos&_="+Date.now(),{cache:"no-store"});
+        if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
+        const resultado=await respuesta.json();
+        if(!resultado || !resultado.ok)throw new Error(resultado?.error||"Respuesta inválida del catálogo");
+
+        clientes=Array.isArray(resultado.clientes)?resultado.clientes:[];
+        elementos=Array.isArray(resultado.elementos)?resultado.elementos:[];
+
+        const catalogo={id:"principal",clientes,elementos};
+        try{localStorage.setItem("servitodo_catalogos",JSON.stringify(catalogo));}catch(e){console.warn("No se pudo guardar catálogo localStorage",e);}
+        try{if(dbOffline)await dbPut("catalogos",catalogo);}catch(e){console.warn("No se pudo guardar catálogo IndexedDB",e);}
+        pintarCatalogo();
     }catch(error){
-        console.error("Error cargando catálogo:",error);
-        mostrarMensaje(navigator.onLine?"❌ No se pudieron cargar los clientes y elementos":"⚠ Sin conexión: no hay datos locales de clientes y elementos","error");
+        console.warn("No se pudo consultar catálogo remoto",error);
+        if(!cache){
+            clienteSelect.innerHTML=`<option value="">No se pudieron cargar los clientes</option>`;
+            mostrarMensaje("❌ No se pudieron cargar los clientes y elementos","error");
+        }
     }
 }
 
@@ -1647,7 +1654,110 @@ async function sincronizarXCCPendientes(){
     if((await dbAll("operacionesXCC")).length===0)localStorage.removeItem("servitodo_xcc_ultimaEdicion");
     actualizarEstadoConexion();
 }
-function generarReporteXCC(){const fecha=new Date(),ft=fecha.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"}),ht=fecha.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}),canvas=document.createElement("canvas"),w=1400,h=220+datosXCC.length*60;canvas.width=w;canvas.height=h;const c=canvas.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,w,h);c.fillStyle="#102b4e";c.fillRect(0,0,w,120);c.fillStyle="#fff";c.font="bold 34px Arial";c.fillText("INVENTARIO DIARIO ESTIBAS XCC",42,55);c.font="bold 20px Arial";c.fillText(ft+"  |  "+ht,42,90);c.fillStyle="#102b4e";c.font="bold 17px Arial";["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"].forEach((x,i)=>c.fillText(x,[40,330,500,730,930,1100][i],160));c.font="16px Arial";datosXCC.forEach((f,i)=>{const y=195+i*60,d=f.estibasDia>0?f.inventarioActual/f.estibasDia:0,x=f.objetivo-f.inventarioActual;[f.cliente,formatear(f.estibasDia),formatear(f.inventarioActual),d.toFixed(1),formatear(f.objetivo),formatear(x)].forEach((v,j)=>c.fillText(String(v),[40,330,500,730,930,1100][j],y));});reporteXCCData=canvas.toDataURL("image/png");const img=document.getElementById("imagenReporteXCC");if(img)img.src=reporteXCCData;document.getElementById("modalReporteXCC")?.classList.add("visible");}
+function generarReporteXCC(){
+    const momento=new Date();
+    const fechaReporte=momento.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
+    const horaReporte=momento.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
+    if(!logoServitodo.complete){
+        logoServitodo.onload=()=>generarReporteXCC();
+        return;
+    }
+
+    const filas=datosXCC||[];
+    const ancho=1200;
+    const margen=40;
+    const headerY=14;
+    const headerH=112;
+    const tablaY=146;
+    const headerTablaH=56;
+    const altoFila=58;
+    const pieH=116;
+    const tablaW=ancho-(margen*2);
+    const alto=tablaY+headerTablaH+Math.max(1,filas.length)*altoFila+14+10+pieH+20;
+
+    const canvas=document.createElement("canvas");
+    canvas.width=ancho;
+    canvas.height=alto;
+    const ctx=canvas.getContext("2d");
+
+    const azul="#102b4e", azulTexto="#11253f", verde="#168b3b", azulProceso="#1957ae";
+    const morado="#7140a8", borde="#c8d0d8", grisClaro="#f5f6f8", blanco="#fff", grisTexto="#6f7d8c";
+
+    ctx.fillStyle=blanco; ctx.fillRect(0,0,ancho,alto);
+
+    // ENCABEZADO — mismo marco visual del reporte diario.
+    const headerX=margen, headerW=ancho-(margen*2);
+    ctx.fillStyle=azul; ctx.fillRect(headerX,headerY,headerW,headerH);
+    const bloqueFecha=330, bloqueLogo=330;
+    ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(headerX+bloqueFecha,headerY); ctx.lineTo(headerX+bloqueFecha,headerY+headerH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(headerX+headerW-bloqueLogo,headerY); ctx.lineTo(headerX+headerW-bloqueLogo,headerY+headerH); ctx.stroke();
+
+    // calendario
+    const calX=50, calY=43;
+    ctx.strokeStyle="#c7d0db"; ctx.lineWidth=4; ctx.strokeRect(calX,calY,34,31);
+    ctx.beginPath(); ctx.moveTo(calX+7,calY-7); ctx.lineTo(calX+7,calY+4); ctx.moveTo(calX+27,calY-7); ctx.lineTo(calX+27,calY+4); ctx.stroke();
+    ctx.lineWidth=2; ctx.beginPath(); for(let i=0;i<3;i++){ctx.moveTo(calX+8,calY+11+i*7);ctx.lineTo(calX+29,calY+11+i*7);} ctx.stroke();
+
+    ctx.fillStyle=blanco; ctx.textAlign="left"; ctx.font="bold 34px Arial"; ctx.fillText(fechaReporte.replace(/\//g,"-"),105,65);
+    ctx.font="bold 18px Arial"; ctx.fillText("Fecha del inventario",106,91);
+    ctx.font="bold 22px Arial"; ctx.fillText("INVENTARIO DIARIO",headerX+bloqueFecha+26,48);
+    ctx.font="bold 58px Arial"; ctx.fillText("SERVITODO",headerX+bloqueFecha+26,99);
+
+    const areaX=headerX+headerW-bloqueLogo, areaW=bloqueLogo;
+    let logoW=logoServitodo.naturalWidth, logoH=logoServitodo.naturalHeight;
+    const escala=Math.min(205/logoW,96/logoH); logoW*=escala; logoH*=escala;
+    ctx.drawImage(logoServitodo,areaX+(areaW-logoW)/2,headerY+(headerH-logoH)/2,logoW,logoH);
+
+    // TABLA XCC — mismo lenguaje visual, bordes, tipografía y colores.
+    const colWidths=[290,150,190,160,165,165];
+    const sum=colWidths.reduce((a,b)=>a+b,0);
+    const factor=tablaW/sum;
+    const w=colWidths.map(v=>v*factor);
+    const x=[margen]; for(let i=1;i<w.length;i++)x[i]=x[i-1]+w[i-1];
+
+    let y=tablaY;
+    ctx.fillStyle=azul; ctx.fillRect(margen,y,tablaW,headerTablaH);
+    const headers=["CLIENTE","ESTIBAS/DÍA","INVENTARIO ACTUAL","DÍAS CUBIERTOS","OBJETIVO","FALTANTE"];
+    ctx.textAlign="center"; ctx.font="bold 18px Arial"; ctx.fillStyle=blanco;
+    headers.forEach((h,i)=>ctx.fillText(h,x[i]+w[i]/2,y+35));
+    ctx.strokeStyle=borde; ctx.lineWidth=1; ctx.strokeRect(margen,y,tablaW,headerTablaH);
+    for(let i=1;i<x.length;i++){ctx.beginPath();ctx.moveTo(x[i],y);ctx.lineTo(x[i],y+headerTablaH);ctx.stroke();}
+    y+=headerTablaH;
+
+    filas.forEach((f,i)=>{
+        const dias=f.estibasDia>0?(Number(f.inventarioActual)||0)/f.estibasDia:0;
+        const faltante=(Number(f.objetivo)||0)-(Number(f.inventarioActual)||0);
+        ctx.fillStyle=i%2===0?blanco:"#fafbfc"; ctx.fillRect(margen,y,tablaW,altoFila);
+        ctx.strokeStyle=borde; ctx.strokeRect(margen,y,tablaW,altoFila);
+        ctx.textAlign="center"; ctx.font="bold 17px Arial"; ctx.fillStyle=azulTexto;
+        ctx.fillText(String(f.cliente||""),x[0]+w[0]/2,y+36);
+        ctx.fillText(formatear(f.estibasDia),x[1]+w[1]/2,y+36);
+        ctx.fillStyle=azulTexto; ctx.fillText(formatear(f.inventarioActual),x[2]+w[2]/2,y+36);
+        ctx.fillStyle=azulProceso; ctx.fillText(dias.toFixed(1),x[3]+w[3]/2,y+36);
+        ctx.fillStyle=azulTexto; ctx.fillText(formatear(f.objetivo),x[4]+w[4]/2,y+36);
+        ctx.fillStyle=faltante>0?"#c77700":faltante<0?verde:grisTexto; ctx.fillText(formatear(faltante),x[5]+w[5]/2,y+36);
+        for(let j=1;j<x.length;j++){ctx.beginPath();ctx.moveTo(x[j],y);ctx.lineTo(x[j],y+altoFila);ctx.stroke();}
+        y+=altoFila;
+    });
+
+    // PIE — idéntico al reporte diario.
+    const footerY=y+10;
+    const f1=margen, f2=margen+tablaW/3, f3=margen+(tablaW/3)*2;
+    ctx.fillStyle=blanco; ctx.fillRect(f1,footerY,tablaW,pieH);
+    ctx.strokeStyle=borde; ctx.lineWidth=1; ctx.strokeRect(f1,footerY,tablaW,pieH);
+    ctx.beginPath();ctx.moveTo(f2,footerY);ctx.lineTo(f2,footerY+pieH);ctx.moveTo(f3,footerY);ctx.lineTo(f3,footerY+pieH);ctx.stroke();
+    ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.beginPath();ctx.arc(f1+40,footerY+44,18,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+40,footerY+31);ctx.moveTo(f1+40,footerY+44);ctx.lineTo(f1+49,footerY+49);ctx.stroke();
+    ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.textAlign="left";ctx.fillText("Generado el:",f1+73,footerY+32);ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText(fechaReporte+" "+horaReporte,f1+73,footerY+62);
+    const personaX=f2+42;ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.beginPath();ctx.arc(personaX,footerY+34,8,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(personaX,footerY+68,17,Math.PI,0);ctx.stroke();ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.fillText("Elaborado por:",f2+73,footerY+32);ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText("Duvan C",f2+73,footerY+62);
+    const docX=f3+40;ctx.strokeStyle="#738292";ctx.lineWidth=3;ctx.strokeRect(docX-13,footerY+24,25,34);ctx.beginPath();ctx.moveTo(docX-6,footerY+34);ctx.lineTo(docX+6,footerY+34);ctx.moveTo(docX-6,footerY+41);ctx.lineTo(docX+6,footerY+41);ctx.moveTo(docX-6,footerY+48);ctx.lineTo(docX+6,footerY+48);ctx.stroke();ctx.fillStyle=grisTexto;ctx.font="15px Arial";ctx.fillText("Inventario diario Servitodo",f3+73,footerY+32);ctx.fillStyle=azulTexto;ctx.font="bold 18px Arial";ctx.fillText("Página 1 de 1",f3+73,footerY+62);
+
+    reporteXCCData=canvas.toDataURL("image/png");
+    const img=document.getElementById("imagenReporteXCC");
+    if(img)img.src=reporteXCCData;
+    document.getElementById("modalReporteXCC")?.classList.add("visible");
+}
+
 function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();}
 prepararEventosXCC();
 iniciarAplicacion();

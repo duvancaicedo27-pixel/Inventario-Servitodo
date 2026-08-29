@@ -1208,3 +1208,40 @@ button{
     #moduloXCC .xcc-actions .primary-button,
     #moduloXCC .xcc-actions .report-button{width:100%;min-width:0;}
 }
+
+
+/* =====================================================
+   FIX FINAL: XCC CENTRADO + CLIENTE SELECCIONABLE
+   Solo presentación/robustez; no modifica la lógica de datos.
+===================================================== */
+#moduloXCC{
+    grid-column:1 / -1 !important;
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    justify-self:stretch !important;
+    align-self:start !important;
+    margin:0 auto !important;
+    box-sizing:border-box !important;
+}
+#moduloXCC .xcc-card{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    margin:0 auto !important;
+    box-sizing:border-box !important;
+}
+#cliente{
+    position:relative !important;
+    z-index:20 !important;
+    pointer-events:auto !important;
+}
+.form-field:has(>#cliente){position:relative !important;z-index:21 !important;}
+.elemento-wrapper{z-index:30 !important;}
+
+@media(max-width:600px){
+    .dashboard{grid-template-columns:minmax(0,1fr) !important;}
+    #moduloXCC{display:block !important;justify-self:stretch !important;}
+    #moduloXCC .xcc-card{margin-left:0 !important;margin-right:0 !important;}
+    #cliente{touch-action:manipulation !important;}
+}
