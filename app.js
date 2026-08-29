@@ -590,39 +590,51 @@ function agregarEstilosMovimientos(){
 
     style.textContent=`
         #listaMovimientos{display:grid;gap:8px}
-        .movimiento-item{display:grid;grid-template-columns:75px 1fr 1fr 100px 90px;grid-template-areas:
-            "hora cliente elemento cantidad estados"
-            ". editar editar eliminar eliminar";align-items:center;gap:10px;padding:12px;background:#f7f9fb;border:1px solid #dce4eb;border-radius:10px}
-        .movimiento-hora{grid-area:hora;font-size:12px;color:#74869a;font-weight:700}
+        .movimiento-item{display:grid;grid-template-columns:75px 1fr 1fr 100px 90px 90px;align-items:center;gap:10px;padding:12px;background:#f7f9fb;border:1px solid #dce4eb;border-radius:10px}
+        .movimiento-hora{font-size:12px;color:#74869a;font-weight:700}
         .movimiento-dato small{display:block;font-size:9px;color:#8493a2;font-weight:800;margin-bottom:3px}
         .movimiento-dato strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#173a5d;font-size:13px}
-        .movimiento-cantidad{grid-area:cantidad;text-align:center;font-weight:900}
-        .movimiento-estados{grid-area:estados;display:grid;gap:4px}
-        .movimiento-estado{font-size:10px;font-weight:900;padding:7px 5px;border-radius:7px;text-align:center;line-height:1.1}
-        .movimiento-estado b{display:block;font-size:12px;margin-top:2px}
-        .estado-mono{background:#e9f6ee;color:#168548}
-        .estado-proceso{background:#e8f1fb;color:#145db7}
+        .movimiento-cantidad{text-align:center;font-weight:900}
+        .movimiento-estado{text-align:center;font-size:10px;font-weight:900;padding:7px 5px;border-radius:7px;color:white}
+        .movimiento-estado.mono{background:#168548}
+        .movimiento-estado.proceso{background:#145db7}
         .btn-editar-movimiento,.btn-eliminar-movimiento{border:0;border-radius:8px;padding:9px;cursor:pointer;font-weight:800}
-        .btn-editar-movimiento{grid-area:editar;background:#e8f1fb;color:#145db7}
-        .btn-eliminar-movimiento{grid-area:eliminar;background:#fbeaea;color:#c62828}
+        .btn-editar-movimiento{background:#e8f1fb;color:#145db7}
+        .btn-eliminar-movimiento{background:#fbeaea;color:#c62828}
         .btn-editar-movimiento:hover{background:#145db7;color:white}
         .btn-eliminar-movimiento:hover{background:#c62828;color:white}
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
-            .movimiento-item{grid-template-columns:16% 27% 24% 13% 20%;grid-template-areas:
-                "hora cliente elemento cantidad estados"
-                "hora cliente elemento cantidad estados"
-                ". editar editar eliminar eliminar";gap:7px;padding:11px 8px;width:100%;min-width:0;box-sizing:border-box}
-            .movimiento-hora{font-size:11px;white-space:nowrap;align-self:start;padding-top:2px;text-align:center}
-            .movimiento-dato{min-width:0}
-            .movimiento-dato small{font-size:8px;letter-spacing:.15px}
-            .movimiento-dato strong{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:normal!important;word-break:normal!important;line-height:1.2;font-size:12px}
-            .movimiento-cantidad{font-size:15px;line-height:1.15;white-space:nowrap;text-align:center}
-            .movimiento-estados{gap:3px;min-width:0}
-            .movimiento-estado{font-size:8px;padding:5px 3px;border-radius:6px;white-space:nowrap}
-            .movimiento-estado b{font-size:11px;margin-top:1px}
-            .btn-editar-movimiento,.btn-eliminar-movimiento{width:100%;padding:8px 4px;min-width:0;box-sizing:border-box;font-size:13px;white-space:nowrap}
-        }    `;
+            .movimiento-item{
+                grid-template-columns:62px minmax(0,1.15fr) minmax(0,1fr) 82px 150px;
+                grid-template-areas:
+                    "hora cliente elemento cantidad estado"
+                    "hora cliente elemento cantidad estado"
+                    ". editar editar eliminar eliminar";
+                align-items:center;
+                gap:7px 7px;
+                padding:12px 10px;
+                width:100%;
+                min-width:0;
+                box-sizing:border-box;
+            }
+            .movimiento-hora{grid-area:hora;align-self:start;padding-top:2px;font-size:12px;white-space:nowrap}
+            .movimiento-cliente{grid-area:cliente;min-width:0}
+            .movimiento-elemento{grid-area:elemento;min-width:0}
+            .movimiento-cantidad{grid-area:cantidad;min-width:0;text-align:center !important;font-size:18px;line-height:1.15;}
+            .movimiento-estado{grid-area:estado;width:100%;min-width:0;align-self:center;box-sizing:border-box}
+            .btn-editar-movimiento{grid-area:editar;width:100%;box-sizing:border-box;white-space:nowrap}
+            .btn-eliminar-movimiento{grid-area:eliminar;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;white-space:nowrap}
+            .movimiento-dato strong{
+                white-space:normal !important;
+                overflow:visible !important;
+                text-overflow:clip !important;
+                overflow-wrap:anywhere !important;
+                word-break:normal !important;
+                line-height:1.2;
+            }
+        }
+    `;
 
     document.head.appendChild(style);
 }
@@ -647,11 +659,6 @@ function actualizarMovimientos(){
         const estado=normalizarTexto(registro.estado);
         const clase=estado==="MONO"?"mono":"proceso";
 
-        const cantidadTexto=formatear(registro.cantidad);
-        const esMono=estado==="MONO";
-        const monoCantidad=esMono?cantidadTexto:"0";
-        const procesoCantidad=esMono?"0":cantidadTexto;
-
         item.innerHTML=`
             <div class="movimiento-hora">${escaparHTML(registro.hora||"--:--")}</div>
             <div class="movimiento-dato movimiento-cliente">
@@ -662,13 +669,10 @@ function actualizarMovimientos(){
                 <small>ELEMENTO</small>
                 <strong>${escaparHTML(registro.elemento)}</strong>
             </div>
-            <div class="movimiento-cantidad">${cantidadTexto}</div>
-            <div class="movimiento-estados">
-                <div class="movimiento-estado estado-mono">MOÑO <b>${monoCantidad}</b></div>
-                <div class="movimiento-estado estado-proceso">PROCESO <b>${procesoCantidad}</b></div>
-            </div>
+            <div class="movimiento-cantidad">${formatear(registro.cantidad)}</div>
+            <div class="movimiento-estado ${clase}">${escaparHTML(registro.estado)}</div>
             <button class="btn-editar-movimiento" type="button">✏️ Editar</button>
-            <button class="btn-eliminar-movimiento" type="button">🗑️ Eliminar</button>
+            <button class="btn-eliminar-movimiento" type="button">🗑️</button>
         `;
 
         item.querySelector(".btn-editar-movimiento").addEventListener("click",()=>editarMovimiento(registro));
