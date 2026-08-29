@@ -594,7 +594,7 @@ function agregarEstilosMovimientos(){
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
             .movimiento-item{
-                grid-template-columns:72px minmax(0,1.35fr) minmax(0,1.15fr) 64px 96px;
+                grid-template-columns:68px minmax(0,1.55fr) minmax(78px,1.2fr) 54px 88px;
                 grid-template-rows:auto auto;
                 align-items:center;
                 column-gap:8px;
@@ -628,13 +628,12 @@ function agregarEstilosMovimientos(){
                 margin-bottom:2px;
             }
             .movimiento-dato strong{
-                white-space:normal;
-                overflow:visible;
-                text-overflow:clip;
+                white-space:nowrap;
+                overflow:hidden;
+                text-overflow:ellipsis;
                 overflow-wrap:normal;
                 word-break:normal;
-                white-space:normal;
-                font-size:11px;
+                font-size:10.5px;
                 line-height:1.2;
                 text-align:center;
             }
