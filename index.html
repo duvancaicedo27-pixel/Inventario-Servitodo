@@ -1,10 +1,16 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="app-booting">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Inventario Diario Servitodo</title>
-<link rel="stylesheet" href="style.css">
+<style id="appBootGuard">
+html.app-booting .summary-card,
+html.app-booting #movimientosCard{visibility:hidden;}
+html.app-ready .summary-card,
+html.app-ready #movimientosCard{visibility:visible;}
+</style>
+<link rel="stylesheet" href="style.css?v=20260829-bootfix">
 </head>
 <body>
 <header class="top-header">
@@ -60,6 +66,6 @@
 </main>
 <div id="modalReporte" class="report-modal"><div class="report-modal-content"><div class="report-modal-header"><div><span>VISTA PREVIA</span><h2>Reporte diario</h2></div><button type="button" id="cerrarReporte" class="close-report">×</button></div><div class="report-preview"><img id="imagenReporte" alt="Vista previa del reporte"></div><button type="button" id="descargarReporte" class="download-report">↓ DESCARGAR PNG</button></div></div>
 <div id="modalReporteXCC" class="report-modal"><div class="report-modal-content"><div class="report-modal-header"><div><span>VISTA PREVIA</span><h2>Reporte Estibas XCC</h2></div><button type="button" id="cerrarReporteXCC" class="close-report">×</button></div><div class="report-preview"><img id="imagenReporteXCC" alt="Vista previa del reporte XCC"></div><button type="button" id="descargarReporteXCC" class="download-report">↓ DESCARGAR PNG</button></div></div>
-<script src="app.js"></script>
+<script src="app.js?v=20260829-bootfix"></script>
 </body>
 </html>
