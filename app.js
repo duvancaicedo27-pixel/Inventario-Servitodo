@@ -594,12 +594,14 @@ function agregarEstilosMovimientos(){
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
             .movimiento-item{
-                grid-template-columns:68px minmax(0,1.55fr) minmax(78px,1.2fr) 54px 88px;
+                grid-template-columns:60px minmax(0,1.65fr) minmax(0,1.25fr) 60px 92px;
                 grid-template-rows:auto auto;
                 align-items:center;
                 column-gap:8px;
                 row-gap:9px;
                 padding:11px 10px 10px;
+                width:100%;
+                min-width:0;
             }
             .movimiento-hora{
                 grid-column:1;
@@ -628,6 +630,7 @@ function agregarEstilosMovimientos(){
                 margin-bottom:2px;
             }
             .movimiento-dato strong{
+                display:block;
                 white-space:nowrap;
                 overflow:hidden;
                 text-overflow:ellipsis;
@@ -667,6 +670,18 @@ function agregarEstilosMovimientos(){
                 width:100%;
                 min-width:0;
                 padding:8px 6px;
+            }
+            @media(max-width:420px){
+                .movimiento-item{
+                    grid-template-columns:54px minmax(0,1.55fr) minmax(0,1.15fr) 48px 82px;
+                    column-gap:6px;
+                    padding:10px 8px 9px;
+                }
+                .movimiento-hora{font-size:10px;}
+                .movimiento-dato small{font-size:7.5px;}
+                .movimiento-dato strong{font-size:9.5px;}
+                .movimiento-cantidad{font-size:11px;}
+                .movimiento-estado{font-size:8.5px;}
             }
         }
     `;
