@@ -954,79 +954,257 @@ button{
 
 
 /* =====================================================
-   AJUSTE FINAL REAL - INVENTARIO DIARIO EN CELULAR
-   Solo afecta max-width:600px. PC permanece intacto.
+   MOBILE FINAL - SOLO PRESENTACION
+   No modifica la logica ni el comportamiento de PC.
 ===================================================== */
-@media (max-width:600px){
-    html, body{width:100%;max-width:100%;overflow-x:hidden !important;}
-    #moduloInventario{width:100%;max-width:100%;min-width:0;overflow:visible;}
-    #moduloInventario .summary-card{width:100%;max-width:100%;min-width:0;overflow:hidden;}
+@media (max-width: 600px){
+    html,body{
+        width:100%;
+        max-width:100%;
+        overflow-x:hidden;
+    }
+    .dashboard{
+        width:100%;
+        max-width:100%;
+        padding:12px;
+        box-sizing:border-box;
+    }
+    #moduloInventario,
+    #moduloXCC{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        box-sizing:border-box;
+    }
 
+    /* ---------- Resumen inventario ---------- */
+    #moduloInventario .summary-card{
+        width:100%;
+        min-width:0;
+        box-sizing:border-box;
+    }
     #moduloInventario .table-container{
-        width:100% !important;
-        max-width:100% !important;
-        min-width:0 !important;
-        overflow:hidden !important;
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        overflow:hidden;
         box-sizing:border-box;
     }
     #moduloInventario .inventory-table{
-        width:100% !important;
-        max-width:100% !important;
-        min-width:0 !important;
-        table-layout:fixed !important;
-        border-collapse:separate;
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        table-layout:fixed;
         box-sizing:border-box;
     }
     #moduloInventario .inventory-table th,
     #moduloInventario .inventory-table td{
-        min-width:0 !important;
+        min-width:0;
         box-sizing:border-box;
-        text-align:center !important;
+        text-align:center;
         vertical-align:middle;
     }
     #moduloInventario .inventory-table thead th{
-        padding:9px 3px !important;
-        font-size:9px !important;
-        line-height:1.15 !important;
-        white-space:normal !important;
-        overflow-wrap:normal !important;
-        word-break:normal !important;
+        padding:9px 3px;
+        font-size:8.5px;
+        line-height:1.15;
+        white-space:normal;
+        overflow-wrap:normal;
+        word-break:normal;
+        text-align:center;
     }
     #moduloInventario .inventory-table tbody td{
-        padding:11px 4px !important;
-        font-size:10.5px !important;
-        line-height:1.2 !important;
+        padding:11px 4px;
+        font-size:10px;
+        line-height:1.2;
         white-space:normal;
+        text-align:center;
     }
     #moduloInventario .inventory-table th:nth-child(1),
-    #moduloInventario .inventory-table td:nth-child(1){width:27% !important;}
+    #moduloInventario .inventory-table td:nth-child(1){width:26%;}
     #moduloInventario .inventory-table th:nth-child(2),
-    #moduloInventario .inventory-table td:nth-child(2){width:20% !important;}
+    #moduloInventario .inventory-table td:nth-child(2){width:19%;}
     #moduloInventario .inventory-table th:nth-child(3),
-    #moduloInventario .inventory-table td:nth-child(3){width:17.5% !important;}
+    #moduloInventario .inventory-table td:nth-child(3){width:18.33%;}
     #moduloInventario .inventory-table th:nth-child(4),
-    #moduloInventario .inventory-table td:nth-child(4){width:17.5% !important;}
+    #moduloInventario .inventory-table td:nth-child(4){width:18.33%;}
     #moduloInventario .inventory-table th:nth-child(5),
-    #moduloInventario .inventory-table td:nth-child(5){width:18% !important;}
-
-    #moduloInventario .inventory-table tbody td:nth-child(1){
-        text-align:left !important;
-        overflow-wrap:normal !important;
-        word-break:normal !important;
+    #moduloInventario .inventory-table td:nth-child(5){width:18.34%;}
+    #moduloInventario .inventory-table tbody td:first-child{
+        text-align:left;
+        overflow-wrap:normal;
+        word-break:normal;
+        hyphens:none;
     }
     #moduloInventario .inventory-table tbody td:nth-child(2){
-        text-align:center !important;
-        white-space:nowrap !important;
+        white-space:nowrap;
         overflow:hidden;
         text-overflow:clip;
+        text-align:center;
     }
     #moduloInventario .inventory-table tbody td:nth-child(3),
     #moduloInventario .inventory-table tbody td:nth-child(4),
     #moduloInventario .inventory-table tbody td:nth-child(5){
-        white-space:nowrap !important;
+        white-space:nowrap;
         overflow:hidden;
         text-overflow:clip;
         font-weight:900;
     }
-    #moduloInventario .inventory-table .empty{padding:20px 8px !important;}
+
+    /* ---------- Movimientos del día ---------- */
+    #movimientosCard{
+        width:100%;
+        min-width:0;
+        box-sizing:border-box;
+    }
+    #listaMovimientos{
+        display:grid;
+        gap:10px;
+        width:100%;
+        min-width:0;
+    }
+    .movimiento-item{
+        display:grid !important;
+        grid-template-columns:70px minmax(0,1fr) 70px 80px !important;
+        grid-template-areas:
+            "hora cliente cantidad estado"
+            "hora elemento cantidad estado"
+            "editar editar eliminar eliminar" !important;
+        column-gap:8px !important;
+        row-gap:8px !important;
+        align-items:center;
+        width:100%;
+        min-width:0;
+        box-sizing:border-box;
+        padding:12px 10px !important;
+        overflow:hidden;
+    }
+    .movimiento-hora{
+        grid-area:hora;
+        align-self:start;
+        padding-top:2px;
+        font-size:12px !important;
+        line-height:1.1;
+        white-space:nowrap;
+        overflow:visible;
+    }
+    .movimiento-cliente{grid-area:cliente !important;}
+    .movimiento-elemento{grid-area:elemento !important;}
+    .movimiento-cantidad{
+        grid-area:cantidad !important;
+        text-align:center !important;
+        font-size:13px;
+        line-height:1.15;
+        white-space:nowrap;
+    }
+    .movimiento-estado{
+        grid-area:estado !important;
+        width:100%;
+        box-sizing:border-box;
+        text-align:center !important;
+        font-size:9px !important;
+        line-height:1.15;
+        padding:8px 4px !important;
+        white-space:normal;
+    }
+    .movimiento-dato{
+        min-width:0;
+        overflow:hidden;
+    }
+    .movimiento-dato small{
+        font-size:8px !important;
+        line-height:1.1;
+    }
+    .movimiento-dato strong{
+        font-size:12px !important;
+        line-height:1.2;
+        white-space:normal !important;
+        overflow:visible !important;
+        text-overflow:clip !important;
+        word-break:normal !important;
+        overflow-wrap:break-word !important;
+        hyphens:none;
+    }
+    .btn-editar-movimiento{
+        grid-area:editar !important;
+        width:100%;
+        min-width:0;
+        box-sizing:border-box;
+        padding:9px 6px !important;
+    }
+    .btn-eliminar-movimiento{
+        grid-area:eliminar !important;
+        width:100%;
+        min-width:0;
+        box-sizing:border-box;
+        padding:9px 6px !important;
+    }
+
+    /* ---------- XCC ---------- */
+    #moduloXCC .xcc-card{
+        width:100%;
+        min-width:0;
+        box-sizing:border-box;
+    }
+    #moduloXCC .table-container{
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        overflow:hidden;
+        box-sizing:border-box;
+    }
+    #moduloXCC .xcc-table{
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        table-layout:fixed;
+        box-sizing:border-box;
+    }
+    #moduloXCC .xcc-table th,
+    #moduloXCC .xcc-table td{
+        min-width:0;
+        box-sizing:border-box;
+        text-align:center;
+        vertical-align:middle;
+    }
+    #moduloXCC .xcc-table th{
+        font-size:8px;
+        line-height:1.15;
+        padding:8px 3px;
+        white-space:normal;
+        word-break:normal;
+        overflow-wrap:normal;
+    }
+    #moduloXCC .xcc-table td{
+        font-size:9px;
+        line-height:1.15;
+        padding:8px 3px;
+        overflow:hidden;
+        word-break:normal;
+    }
+    #moduloXCC .xcc-table th:nth-child(1),#moduloXCC .xcc-table td:nth-child(1){width:30%;text-align:left;}
+    #moduloXCC .xcc-table th:nth-child(2),#moduloXCC .xcc-table td:nth-child(2){width:11%;}
+    #moduloXCC .xcc-table th:nth-child(3),#moduloXCC .xcc-table td:nth-child(3){width:16%;}
+    #moduloXCC .xcc-table th:nth-child(4),#moduloXCC .xcc-table td:nth-child(4){width:13%;}
+    #moduloXCC .xcc-table th:nth-child(5),#moduloXCC .xcc-table td:nth-child(5){width:15%;}
+    #moduloXCC .xcc-table th:nth-child(6),#moduloXCC .xcc-table td:nth-child(6){width:15%;}
+    #moduloXCC .xcc-input{
+        width:100% !important;
+        min-width:0 !important;
+        max-width:100%;
+        box-sizing:border-box;
+        height:34px;
+        padding:5px 2px !important;
+        font-size:10px;
+        text-align:center;
+    }
+    #moduloXCC .xcc-table td:first-child strong{
+        display:block;
+        overflow-wrap:normal;
+        word-break:normal;
+        line-height:1.2;
+    }
+    #moduloXCC .xcc-actions{display:flex;flex-direction:column;gap:8px;}
+    #moduloXCC .xcc-actions .primary-button,
+    #moduloXCC .xcc-actions .report-button{width:100%;min-width:0;}
 }
