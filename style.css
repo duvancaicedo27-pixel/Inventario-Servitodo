@@ -1300,3 +1300,23 @@ button{
         table-layout:fixed !important;
     }
 }
+
+/* CENTRADO GLOBAL DE VALORES NUMERICOS - PC Y CELULAR.
+   Solo afecta la alineacion visual de los numeros. */
+.stat-card strong{
+    display:block;
+    width:100%;
+    text-align:center !important;
+}
+.secondary-stats strong{
+    display:inline-block;
+    text-align:center !important;
+}
+.inventory-table tbody td:nth-child(3),
+.inventory-table tbody td:nth-child(4),
+.inventory-table tbody td:nth-child(5){
+    text-align:center !important;
+}
+.movimiento-cantidad{
+    text-align:center !important;
+}
