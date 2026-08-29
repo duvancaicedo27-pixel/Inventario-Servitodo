@@ -1739,7 +1739,7 @@ let datosXCC=[];
 let reporteXCCData="";
 function fechaActualXCC(){return new Date().toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});}
 function mensajeXCC(texto,tipo="ok"){const e=document.getElementById("mensajeXCC");if(!e)return;e.textContent=texto;e.style.color=tipo==="ok"?"#168548":"#c62828";clearTimeout(window.mx);window.mx=setTimeout(()=>e.textContent="",3500);}
-function cambiarModuloXCC(activo){const inv=document.getElementById("moduloInventario"),mod=document.getElementById("moduloXCC"),b1=document.getElementById("btnInventario"),b2=document.getElementById("btnXCC");if(!inv||!mod)return;if(activo){inv.style.display="none";mod.style.display="block";b1?.classList.remove("activo");b2?.classList.add("activo");cargarDatosXCC().then(()=>{firmaDatosXCC=firmaEstadoXCC(datosXCC);programarActualizacionXCC();});}else{detenerActualizacionXCC();inv.style.display="contents";mod.style.display="none";b1?.classList.add("activo");b2?.classList.remove("activo");}}
+function cambiarModuloXCC(activo){const inv=document.getElementById("moduloInventario"),mod=document.getElementById("moduloXCC"),b1=document.getElementById("btnInventario"),b2=document.getElementById("btnXCC");if(!inv||!mod)return;if(activo){inv.style.display="none";mod.style.display="block";b1?.classList.remove("activo");b2?.classList.add("activo");cargarDatosXCC();}else{inv.style.display="contents";mod.style.display="none";b1?.classList.add("activo");b2?.classList.remove("activo");}}
 function calcularFilaXCC(i){const f=datosXCC[i];if(!f)return;const dias=f.estibasDia>0?f.inventarioActual/f.estibasDia:0, faltante=f.objetivo-f.inventarioActual;const d=document.querySelector(`[data-xcc-dias="${i}"]`),x=document.querySelector(`[data-xcc-faltante="${i}"]`);if(d)d.textContent=dias.toFixed(1);if(x){x.textContent=formatear(faltante);x.className="xcc-faltante "+(faltante>0?"faltante":faltante<0?"excedente":"igual");}}
 function renderizarXCC(){const tb=document.getElementById("tablaXCC");if(!tb)return;if(!datosXCC.length){tb.innerHTML=`<tr><td colspan="6" class="empty">No hay clientes configurados en ESTIBAS XCC.</td></tr>`;return;}tb.innerHTML=datosXCC.map((f,i)=>{const dias=f.estibasDia>0?f.inventarioActual/f.estibasDia:0,faltante=f.objetivo-f.inventarioActual;return`<tr><td><strong>${escaparHTML(f.cliente)}</strong></td><td>${formatear(f.estibasDia)}</td><td><input class="xcc-input" type="number" min="0" step="1" value="${f.inventarioActual}" data-xcc-index="${i}" data-xcc-campo="inventarioActual"></td><td class="xcc-dias" data-xcc-dias="${i}">${dias.toFixed(1)}</td><td><input class="xcc-input" type="number" min="0" step="1" value="${f.objetivo}" data-xcc-index="${i}" data-xcc-campo="objetivo"></td><td class="xcc-faltante ${faltante>0?"faltante":faltante<0?"excedente":"igual"}" data-xcc-faltante="${i}">${formatear(faltante)}</td></tr>`}).join("");document.querySelectorAll(".xcc-input").forEach(e=>e.addEventListener("input",()=>{const i=Number(e.dataset.xccIndex);datosXCC[i][e.dataset.xccCampo]=Number(e.value)||0;calcularFilaXCC(i);}));}
 async function cargarDatosXCC(){
@@ -1803,78 +1803,6 @@ async function cargarDatosXCC(){
         mensajeXCC("❌ "+error.message,"error");
     }
 }
-let intervaloActualizacionXCC=null;
-let actualizacionXCCEnCurso=false;
-let firmaDatosXCC="";
-
-function firmaEstadoXCC(lista){
-    return JSON.stringify((lista||[]).map(f=>({
-        cliente:normalizarTexto(f.cliente),
-        estibasDia:Number(f.estibasDia)||0,
-        inventarioActual:Number(f.inventarioActual)||0,
-        objetivo:Number(f.objetivo)||0
-    })));
-}
-
-async function actualizarXCCEnSegundoPlano(){
-    if(actualizacionXCCEnCurso||!navigator.onLine)return;
-    const modulo=document.getElementById("moduloXCC");
-    if(!modulo||getComputedStyle(modulo).display==="none")return;
-
-    // No reemplazar datos locales mientras exista una operación XCC pendiente.
-    if(!dbOffline)await abrirDBOffline();
-    let pendientes=[];
-    try{pendientes=await dbAll("operacionesXCC");}catch(e){return;}
-    if(pendientes.length>0)return;
-
-    actualizacionXCCEnCurso=true;
-    try{
-        const r=await fetch(API_URL+"?accion=obtenerXCC&_="+Date.now(),{cache:"no-store"});
-        if(!r.ok)throw new Error("HTTP "+r.status);
-        const resultado=await r.json();
-        if(!resultado.ok)throw new Error(resultado.error||"No se pudo actualizar XCC");
-
-        const unicos=new Map();
-        (resultado.configuracion||[]).forEach(i=>{
-            const u=i.ultimo||{};
-            const fila={
-                cliente:i.cliente,
-                estibasDia:Number(i.estibasDia)||0,
-                inventarioActual:Number(u.inventarioActual)||0,
-                objetivo:Number(u.objetivo)||0,
-                ultimoId:u.id||"",
-                ultimaFecha:u.fecha||""
-            };
-            const clave=normalizarTexto(fila.cliente);
-            if(clave)unicos.set(clave,fila);
-        });
-
-        const nuevosDatos=Array.from(unicos.values());
-        const firmaNueva=firmaEstadoXCC(nuevosDatos);
-
-        if(firmaNueva!==firmaDatosXCC){
-            datosXCC=nuevosDatos;
-            firmaDatosXCC=firmaNueva;
-            localStorage.setItem("servitodo_xcc_cache",JSON.stringify(resultado));
-            renderizarXCC();
-        }
-    }catch(e){
-        console.warn("No se pudo actualizar XCC en segundo plano:",e);
-    }finally{
-        actualizacionXCCEnCurso=false;
-    }
-}
-
-function programarActualizacionXCC(){
-    clearInterval(intervaloActualizacionXCC);
-    intervaloActualizacionXCC=setInterval(actualizarXCCEnSegundoPlano,3000);
-}
-
-function detenerActualizacionXCC(){
-    clearInterval(intervaloActualizacionXCC);
-    intervaloActualizacionXCC=null;
-}
-
 function prepararEventosXCC(){document.getElementById("btnInventario")?.addEventListener("click",()=>cambiarModuloXCC(false));document.getElementById("btnXCC")?.addEventListener("click",()=>cambiarModuloXCC(true));document.getElementById("guardarXCCBtn")?.addEventListener("click",guardarXCCLocal);document.getElementById("reporteXCCBtn")?.addEventListener("click",generarReporteXCC);document.getElementById("cerrarReporteXCC")?.addEventListener("click",()=>document.getElementById("modalReporteXCC")?.classList.remove("visible"));document.getElementById("descargarReporteXCC")?.addEventListener("click",descargarReporteXCC);}
 let guardandoXCC=false;
 
@@ -2128,7 +2056,7 @@ async function generarReporteXCC(){
     const centroX=headerX+bloqueFecha+26;
     c.fillStyle=blanco;
     c.font="bold 22px Arial";
-    c.fillText("INVENTARIO DIARIO",centroX,48);
+    c.fillText("Inventario Diario Estibas XCC",centroX,48);
 
     c.font="bold 58px Arial";
     c.fillText("SERVITODO",centroX,99);
