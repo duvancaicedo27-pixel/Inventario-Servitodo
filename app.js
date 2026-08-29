@@ -1677,6 +1677,25 @@ if(modalReporte){
     });
 }
 
+function mostrarAvisoDescarga(texto){
+    let aviso=document.getElementById("avisoDescargaReporte");
+    if(!aviso){
+        aviso=document.createElement("div");
+        aviso.id="avisoDescargaReporte";
+        aviso.setAttribute("role","status");
+        aviso.setAttribute("aria-live","polite");
+        aviso.style.cssText="position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(12px);z-index:10001;background:rgba(255,255,255,.97);border:1px solid #dbe4ee;border-radius:14px;box-shadow:0 10px 28px rgba(16,43,78,.16);padding:10px 16px;font:700 13px Inter,Segoe UI,Arial,sans-serif;color:#17385d;opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;white-space:nowrap;max-width:calc(100vw - 28px);overflow:hidden;text-overflow:ellipsis;";
+        document.body.appendChild(aviso);
+    }
+    aviso.textContent=texto;
+    clearTimeout(window.__avisoDescargaTimer);
+    requestAnimationFrame(()=>{aviso.style.opacity="1";aviso.style.transform="translateX(-50%) translateY(0)";});
+    window.__avisoDescargaTimer=setTimeout(()=>{
+        aviso.style.opacity="0";
+        aviso.style.transform="translateX(-50%) translateY(12px)";
+    },2200);
+}
+
 const descargarReporte=document.getElementById("descargarReporte");
 
 if(descargarReporte){
@@ -1695,6 +1714,7 @@ if(descargarReporte){
             ".png";
 
         enlace.click();
+        mostrarAvisoDescarga("✓ Reporte diario descargado");
     });
 }
 
@@ -2252,7 +2272,7 @@ async function generarReporteXCC(){
     if(img)img.src=reporteXCCData;
     document.getElementById("modalReporteXCC")?.classList.add("visible");
 }
-function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();}
+function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();mostrarAvisoDescarga("✓ Reporte XCC descargado");}
 prepararEventosXCC();
 iniciarAplicacion();
 
