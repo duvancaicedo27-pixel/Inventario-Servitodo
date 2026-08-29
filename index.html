@@ -17,10 +17,6 @@
 <div class="header-logo"><img src="logo-servitodo.png" alt="Servitodo Ltda"></div>
 </div>
 </header>
-<nav class="modulos">
-<button type="button" id="btnInventario" class="modulo-btn activo">INVENTARIO DIARIO</button>
-<button type="button" id="btnXCC" class="modulo-btn">ESTIBAS XCC</button>
-</nav>
 <main class="dashboard">
 <div id="moduloInventario">
 <section class="card form-card">
@@ -48,18 +44,8 @@
 <div class="table-container"><table class="inventory-table"><thead><tr><th rowspan="2">CLIENTE</th><th rowspan="2">ELEMENTO</th><th colspan="3" class="estado-heading">ESTADO</th></tr><tr><th class="th-mono">Moño</th><th class="th-proceso">Proceso</th><th class="th-total">Suma total</th></tr></thead><tbody id="tablaResumen"><tr><td colspan="5" class="empty">Aún no hay registros para este inventario.</td></tr></tbody></table></div>
 </section>
 </div>
-<div id="moduloXCC" style="display:none">
-<section class="card xcc-card">
-<div class="section-header"><div class="section-icon blue">▥</div><div><h2>Inventario Diario Estibas XCC</h2><p>Control diario de inventario de estibas.</p></div></div>
-<div class="xcc-fecha"><span>FECHA DEL INVENTARIO</span><strong id="fechaXCC"></strong></div>
-<div class="table-container"><table class="inventory-table xcc-table"><thead><tr><th>CLIENTE</th><th>ESTIBAS/DÍA</th><th>INVENTARIO ACTUAL</th><th>DÍAS CUBIERTOS</th><th>OBJETIVO</th><th>FALTANTE</th></tr></thead><tbody id="tablaXCC"><tr><td colspan="6" class="empty">Cargando inventario XCC...</td></tr></tbody></table></div>
-<div id="mensajeXCC" class="message"></div>
-<div class="xcc-actions"><button type="button" id="guardarXCCBtn" class="primary-button">✓ GUARDAR INVENTARIO XCC</button><button type="button" id="reporteXCCBtn" class="report-button">▣ GENERAR REPORTE XCC</button></div>
-</section>
-</div>
 </main>
 <div id="modalReporte" class="report-modal"><div class="report-modal-content"><div class="report-modal-header"><div><span>VISTA PREVIA</span><h2>Reporte diario</h2></div><button type="button" id="cerrarReporte" class="close-report">×</button></div><div class="report-preview"><img id="imagenReporte" alt="Vista previa del reporte"></div><button type="button" id="descargarReporte" class="download-report">↓ DESCARGAR PNG</button></div></div>
-<div id="modalReporteXCC" class="report-modal"><div class="report-modal-content"><div class="report-modal-header"><div><span>VISTA PREVIA</span><h2>Reporte Estibas XCC</h2></div><button type="button" id="cerrarReporteXCC" class="close-report">×</button></div><div class="report-preview"><img id="imagenReporteXCC" alt="Vista previa del reporte XCC"></div><button type="button" id="descargarReporteXCC" class="download-report">↓ DESCARGAR PNG</button></div></div>
 <script src="app.js"></script>
 </body>
 </html>
