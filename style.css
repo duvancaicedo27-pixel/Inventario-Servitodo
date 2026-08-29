@@ -1366,3 +1366,21 @@ button{
         margin-right:auto !important;
     }
 }
+
+/* =========================================================
+   CENTRADO RESUMEN DEL DÍA — SOLO PRESENTACIÓN
+   ========================================================= */
+.summary-card .stat-card{
+    text-align:center;
+}
+.summary-card .stat-top{
+    justify-content:center;
+    text-align:center;
+}
+.summary-card .stat-card strong,
+.summary-card .stat-card small{
+    text-align:center;
+}
+.summary-card .secondary-stats{
+    justify-content:center;
+}
