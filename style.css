@@ -927,13 +927,24 @@ button{
 
 /* ===== DISTRIBUCION INVENTARIO PRINCIPAL ===== */
 .dashboard > #moduloInventario{display:contents;}
+/* XCC ocupa todo el ancho disponible y permanece centrado. */
+.dashboard > #moduloXCC{
+    grid-column:1 / -1;
+    width:100%;
+    max-width:1200px;
+    margin:0 auto;
+}
+.dashboard > #moduloXCC .xcc-card{
+    width:100%;
+    margin:0 auto;
+}
 /* ===== MODULOS ===== */
 .modulos{display:flex;gap:10px;padding:0 24px;background:var(--background);max-width:1500px;margin:0 auto;}
 .modulo-btn{border:1px solid var(--border);border-bottom:0;background:#fff;color:var(--navy);border-radius:10px 10px 0 0;padding:12px 24px;font-size:12px;font-weight:900;cursor:pointer;transition:.2s;}
 .modulo-btn:hover{background:#edf4fb;}
 .modulo-btn.activo{background:var(--navy);color:#fff;border-color:var(--navy);}
 /* ===== XCC ===== */
-.xcc-card{grid-column:1 / -1;}
+.xcc-card{grid-column:1 / -1;min-width:0;}
 .xcc-fecha{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:4px 0 18px;padding:13px 15px;border:1px solid var(--border);border-radius:10px;background:#f7f9fc;}
 .xcc-fecha span{font-size:11px;font-weight:900;color:#71829a;letter-spacing:.8px;}
 .xcc-fecha strong{font-size:18px;color:var(--navy);}
@@ -950,43 +961,450 @@ button{
 .xcc-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
 .xcc-actions .primary-button{width:auto;min-width:250px;}
 .xcc-actions .report-button{min-width:190px;}
-@media(max-width:850px){.modulos{padding:0 12px;}.modulo-btn{flex:1;padding:11px 10px;font-size:10px;}.xcc-fecha{align-items:flex-start;flex-direction:column;gap:5px;}.xcc-actions{flex-direction:column;}.xcc-actions .primary-button,.xcc-actions .report-button{width:100%;}}
+@media(max-width:850px){
+    .dashboard > #moduloXCC{
+        grid-column:1 / -1;
+        width:100%;
+        max-width:none;
+        margin:0;
+    }
+    .dashboard > #moduloXCC .xcc-card{width:100%;padding:15px;}
+    .modulos{padding:0 12px;}
+    .modulo-btn{flex:1;padding:11px 10px;font-size:10px;}
+    .xcc-fecha{align-items:flex-start;flex-direction:column;gap:5px;}
+    .xcc-actions{flex-direction:column;}
+    .xcc-actions .primary-button,.xcc-actions .report-button{width:100%;}
+    .xcc-table{min-width:700px;}
+    .xcc-table th,.xcc-table td{font-size:10px;padding:9px 7px;}
+    .xcc-input{min-width:82px;height:38px;padding:7px 6px;font-size:12px;}
+}
 
-/* ===== INVENTARIO DIARIO: tabla móvil más legible ===== */
+@media(max-width:600px){
+    .dashboard > #moduloXCC .xcc-card{padding:12px;border-radius:13px;}
+    .dashboard > #moduloXCC .section-header{margin-bottom:14px;}
+    .dashboard > #moduloXCC .section-header h2{font-size:18px;}
+    .xcc-fecha{margin-bottom:12px;padding:11px 12px;}
+    .xcc-fecha span{font-size:10px;}
+    .xcc-fecha strong{font-size:17px;}
+    .xcc-table{min-width:650px;}
+    .xcc-table th,.xcc-table td{font-size:9px;padding:8px 6px;}
+    .xcc-input{min-width:74px;height:36px;font-size:11px;}
+}
+
+/* =====================================================
+   AJUSTE EXCLUSIVO XCC - MÓVIL SIN DESPLAZAMIENTO HORIZONTAL
+   ===================================================== */
 @media (max-width: 600px){
+    #moduloXCC{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow:hidden;
+    }
+
+    #moduloXCC .xcc-card{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        box-sizing:border-box;
+        overflow:hidden;
+    }
+
+    #moduloXCC .xcc-table-wrap{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow:hidden;
+    }
+
+    #moduloXCC .xcc-table{
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        table-layout:fixed;
+    }
+
+    #moduloXCC .xcc-table th,
+    #moduloXCC .xcc-table td{
+        min-width:0;
+        width:auto;
+        overflow:hidden;
+        word-break:break-word;
+        overflow-wrap:anywhere;
+    }
+
+    #moduloXCC .xcc-table th{
+        font-size:9px;
+        line-height:1.15;
+        padding:8px 4px;
+    }
+
+    #moduloXCC .xcc-table td{
+        font-size:10px;
+        line-height:1.2;
+        padding:9px 4px;
+    }
+
+    #moduloXCC .xcc-table td:first-child{
+        width:24%;
+    }
+
+    #moduloXCC .xcc-input{
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        box-sizing:border-box;
+        height:36px;
+        padding:6px 2px;
+        font-size:11px;
+    }
+}
+@media (max-width: 600px){
+    #moduloXCC .table-container{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow:hidden;
+    }
+    /* Más espacio para CLIENTE y cortes naturales entre palabras. */
+    #moduloXCC .xcc-table th:nth-child(1),#moduloXCC .xcc-table td:nth-child(1){width:30%;}
+    #moduloXCC .xcc-table th:nth-child(2),#moduloXCC .xcc-table td:nth-child(2){width:12%;}
+    #moduloXCC .xcc-table th:nth-child(3),#moduloXCC .xcc-table td:nth-child(3){width:17%;}
+    #moduloXCC .xcc-table th:nth-child(4),#moduloXCC .xcc-table td:nth-child(4){width:13%;}
+    #moduloXCC .xcc-table th:nth-child(5),#moduloXCC .xcc-table td:nth-child(5){width:15%;}
+    #moduloXCC .xcc-table th:nth-child(6),#moduloXCC .xcc-table td:nth-child(6){width:13%;}
+    #moduloXCC .xcc-table td:first-child{
+        word-break:normal;
+        overflow-wrap:normal;
+        hyphens:none;
+        line-height:1.25;
+        padding-left:6px;
+        padding-right:6px;
+    }
+}
+
+/* =====================================================
+   AJUSTE MÓVIL INVENTARIO DIARIO - MISMO COMPORTAMIENTO QUE XCC
+   SOLO ADAPTA LA TABLA A LA PANTALLA SIN DESPLAZAMIENTO LATERAL
+   ===================================================== */
+@media (max-width: 600px){
+    #moduloInventario .table-container{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow:hidden;
+        box-sizing:border-box;
+    }
+
     #moduloInventario .inventory-table{
-        width:100% !important;
-        min-width:0 !important;
-        table-layout:fixed !important;
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        table-layout:fixed;
+        box-sizing:border-box;
     }
 
     #moduloInventario .inventory-table th,
     #moduloInventario .inventory-table td{
-        box-sizing:border-box;
-        padding-left:5px !important;
-        padding-right:5px !important;
-    }
-
-    /* Reducimos un poco ELEMENTO para dar aire a ESTADO. */
-    #moduloInventario .inventory-table thead tr:first-child th:nth-child(1){width:37%;}
-    #moduloInventario .inventory-table thead tr:first-child th:nth-child(2){width:26%;}
-    #moduloInventario .inventory-table thead tr:nth-child(2) th{width:12.333%;}
-
-    #moduloInventario .inventory-table thead tr:nth-child(2) th{
-        font-size:10px !important;
-        line-height:1.05 !important;
-        white-space:normal;
-        overflow-wrap:normal;
-        word-break:normal;
-    }
-
-    /* Los valores numéricos no se parten en varias líneas. */
-    #moduloInventario .inventory-table tbody td:nth-child(3),
-    #moduloInventario .inventory-table tbody td:nth-child(4),
-    #moduloInventario .inventory-table tbody td:nth-child(5){
-        white-space:nowrap !important;
+        min-width:0;
+        max-width:100%;
         overflow:hidden;
+        overflow-wrap:anywhere;
+        word-break:break-word;
+        box-sizing:border-box;
+    }
+
+    #moduloInventario .inventory-table th{
+        font-size:9px;
+        line-height:1.15;
+        padding:8px 4px;
+    }
+
+    #moduloInventario .inventory-table td{
+        font-size:10px;
+        line-height:1.2;
+        padding:9px 4px;
+    }
+
+    /* Distribución proporcional de las 5 columnas */
+    #moduloInventario .inventory-table th:nth-child(1),
+    #moduloInventario .inventory-table td:nth-child(1){width:24%;}
+    #moduloInventario .inventory-table th:nth-child(2),
+    #moduloInventario .inventory-table td:nth-child(2){width:20%;}
+    #moduloInventario .inventory-table th:nth-child(3),
+    #moduloInventario .inventory-table td:nth-child(3){width:18%;}
+    #moduloInventario .inventory-table th:nth-child(4),
+    #moduloInventario .inventory-table td:nth-child(4){width:18%;}
+    #moduloInventario .inventory-table th:nth-child(5),
+    #moduloInventario .inventory-table td:nth-child(5){width:20%;}
+}
+
+/* =====================================================
+   AJUSTE EXCLUSIVO INVENTARIO DIARIO - MOBILE
+   La tabla debe ocupar exactamente el ancho disponible.
+   No modifica XCC ni la lógica de la aplicación.
+===================================================== */
+@media (max-width: 600px){
+    #moduloInventario .table-container{
+        width:100%;
+        max-width:100%;
+        overflow:hidden;
+    }
+
+    #moduloInventario .inventory-table{
+        width:100%;
+        min-width:0;
+        max-width:100%;
+        table-layout:fixed;
+    }
+
+    #moduloInventario .inventory-table th,
+    #moduloInventario .inventory-table td{
+        padding:8px 4px;
+        overflow-wrap:anywhere;
+        word-break:break-word;
+    }
+
+    #moduloInventario .inventory-table thead th{
+        font-size:9px;
+        line-height:1.15;
+        padding:8px 3px;
+    }
+
+    #moduloInventario .inventory-table tbody td{
+        font-size:10px;
+        line-height:1.2;
+        padding:10px 4px;
+    }
+
+    /* Proporciones para las 5 columnas del inventario diario */
+    #moduloInventario .inventory-table th:nth-child(1),
+    #moduloInventario .inventory-table td:nth-child(1){width:27%;}
+
+    #moduloInventario .inventory-table th:nth-child(2),
+    #moduloInventario .inventory-table td:nth-child(2){width:23%;}
+
+    #moduloInventario .inventory-table th:nth-child(3),
+    #moduloInventario .inventory-table td:nth-child(3){width:16.5%;}
+
+    #moduloInventario .inventory-table th:nth-child(4),
+    #moduloInventario .inventory-table td:nth-child(4){width:16.5%;}
+
+    #moduloInventario .inventory-table th:nth-child(5),
+    #moduloInventario .inventory-table td:nth-child(5){width:17%;}
+
+    #moduloInventario .inventory-table tbody td:first-child,
+    #moduloInventario .inventory-table tbody td:nth-child(2){
+        text-align:left;
+    }
+
+    #moduloInventario .inventory-table .empty{
+        padding:20px 8px;
+    }
+}
+
+
+/* =====================================================
+   CORRECCIÓN DEFINITIVA MOBILE INVENTARIO DIARIO
+   Solo corrige el ancho/overflow del módulo principal.
+   No modifica XCC ni la lógica.
+===================================================== */
+@media (max-width: 600px){
+    html, body{
+        width:100%;
+        max-width:100%;
+        overflow-x:hidden !important;
+    }
+
+    .top-header,
+    .header-inner,
+    .modulos,
+    .dashboard,
+    #moduloInventario,
+    #moduloInventario > section,
+    #movimientosCard,
+    .card,
+    .form-card,
+    .summary-card{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        box-sizing:border-box;
+    }
+
+    .header-inner{
+        grid-template-columns:minmax(0,1fr) auto;
+        gap:10px;
+    }
+
+    .header-title,
+    .header-date,
+    .header-logo{
+        min-width:0;
+        max-width:100%;
+    }
+
+    .header-title strong,
+    .header-title div,
+    .header-date-main,
+    .header-date-label{
+        max-width:100%;
+        overflow:hidden;
+    }
+
+    .dashboard{
+        display:block;
+        padding:10px;
+        overflow-x:hidden;
+    }
+
+    #moduloInventario > section{
+        margin-left:0;
+        margin-right:0;
+    }
+
+    #moduloInventario .form-grid,
+    #moduloInventario .form-field,
+    #moduloInventario .elemento-wrapper,
+    #moduloInventario .elemento-input-row,
+    #moduloInventario .estado-buttons,
+    #moduloInventario .subsection-header,
+    #moduloInventario .secondary-stats{
+        min-width:0;
+        max-width:100%;
+    }
+
+    #moduloInventario .form-field input,
+    #moduloInventario .form-field select,
+    #moduloInventario .form-field textarea,
+    #moduloInventario .elemento-input-row input,
+    #moduloInventario .clear-element,
+    #moduloInventario .estado-btn,
+    #moduloInventario .primary-button,
+    #moduloInventario .report-button{
+        max-width:100%;
+        box-sizing:border-box;
+    }
+
+    #moduloInventario .table-container{
+        width:100%;
+        max-width:100%;
+        min-width:0;
+        overflow:hidden !important;
+    }
+
+    #moduloInventario .inventory-table{
+        width:100% !important;
+        max-width:100% !important;
+        min-width:0 !important;
+        table-layout:fixed !important;
+    }
+}
+
+/* Ajuste móvil: más espacio real para MOÑO / PROCESO / SUMA TOTAL. */
+@media (max-width: 600px){
+    #moduloInventario .inventory-table th:nth-child(1),
+    #moduloInventario .inventory-table td:nth-child(1){width:27%;}
+    #moduloInventario .inventory-table th:nth-child(2),
+    #moduloInventario .inventory-table td:nth-child(2){width:19%;}
+    #moduloInventario .inventory-table th:nth-child(3),
+    #moduloInventario .inventory-table td:nth-child(3),
+    #moduloInventario .inventory-table th:nth-child(4),
+    #moduloInventario .inventory-table td:nth-child(4),
+    #moduloInventario .inventory-table th:nth-child(5),
+    #moduloInventario .inventory-table td:nth-child(5){width:18%;}
+
+    #moduloInventario .inventory-table thead th:nth-child(n+3){
+        white-space:normal;
+        word-break:normal;
+        overflow-wrap:normal;
+        line-height:1.08;
+        padding-left:5px;
+        padding-right:5px;
+        font-size:11px;
+        letter-spacing:0;
+        text-align:center;
+    }
+
+    #moduloInventario .inventory-table tbody td:nth-child(n+3){
+        white-space:nowrap;
+        word-break:normal;
+        overflow-wrap:normal;
+        line-height:1.15;
+        padding-left:3px;
+        padding-right:3px;
+        font-size:12px;
+        text-align:center;
+    }
+}
+
+/* Solo móvil: reorganiza movimientos para que el cliente quede completamente legible. */
+@media(max-width:800px){
+    .movimiento-item{
+        grid-template-columns:65px minmax(0,1fr) 104px;
+        grid-template-areas:
+            "hora cliente cantidad"
+            "hora elemento estado"
+            ". editar eliminar";
+        grid-auto-rows:auto;
+        gap:7px 8px;
+        min-width:0;
+        width:100%;
+        box-sizing:border-box;
+    }
+
+    .movimiento-hora{
+        grid-area:hora;
+        align-self:start;
+        padding-top:2px;
+    }
+
+    .movimiento-cliente{
+        grid-area:cliente;
+        min-width:0;
+    }
+
+    .movimiento-elemento{
+        grid-area:elemento;
+        min-width:0;
+    }
+
+    .movimiento-cantidad{
+        grid-area:cantidad;
+        min-width:0;
+        align-self:center;
+    }
+
+    .movimiento-estado{
+        grid-area:estado;
+        min-width:0;
+        align-self:center;
+    }
+
+    .btn-editar-movimiento{
+        grid-area:editar;
+        min-width:0;
+        width:100%;
+        box-sizing:border-box;
+        white-space:nowrap;
+    }
+
+    .btn-eliminar-movimiento{
+        grid-area:eliminar;
+        min-width:0;
+        width:100%;
+        box-sizing:border-box;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        white-space:nowrap;
+    }
+
+    .movimiento-dato strong{
+        white-space:normal;
+        overflow:visible;
         text-overflow:clip;
-        font-size:12px !important;
+        overflow-wrap:anywhere;
+        line-height:1.2;
     }
 }
