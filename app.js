@@ -689,45 +689,103 @@ function agregarEstilosMovimientos(){
         .btn-editar-movimiento:hover{background:#145db7;color:white}
         .btn-eliminar-movimiento:hover{background:#c62828;color:white}
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
-        /* Botones siempre en una fila inferior; información arriba. */
+        /* Distribución final: información arriba y botones en una fila inferior. */
         .movimiento-item{
-            grid-template-columns:90px minmax(180px,1.5fr) minmax(130px,1fr) 110px 140px;
+            display:grid;
+            grid-template-columns:110px minmax(0,1fr) 100px 145px;
+            grid-template-rows:auto auto auto;
             grid-template-areas:
-                "hora cliente cliente cantidad estado"
-                "hora elemento elemento cantidad estado"
-                "editar editar editar eliminar eliminar";
+                "hora cliente cantidad estado"
+                "hora elemento cantidad estado"
+                "editar editar eliminar eliminar";
             align-items:center;
+            column-gap:16px;
             row-gap:10px;
+            padding:14px;
+            min-width:0;
         }
-        .movimiento-hora{grid-area:hora;align-self:start;padding-top:4px}
-        .movimiento-cliente{grid-area:cliente;min-width:0}
-        .movimiento-elemento{grid-area:elemento;min-width:0}
-        .movimiento-cantidad{grid-area:cantidad;text-align:center}
-        .movimiento-estado{grid-area:estado}
-        .btn-editar-movimiento{grid-area:editar;width:100%;margin-top:4px}
-        .btn-eliminar-movimiento{grid-area:eliminar;width:100%;margin-top:4px}
-        .movimiento-dato strong{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.2}
+        .movimiento-hora{
+            grid-area:hora;
+            align-self:start;
+            padding-top:5px;
+            white-space:nowrap;
+            font-size:14px;
+        }
+        .movimiento-cliente,
+        .movimiento-elemento{
+            min-width:0;
+            width:100%;
+            text-align:center;
+        }
+        .movimiento-cliente{grid-area:cliente}
+        .movimiento-elemento{grid-area:elemento}
+        .movimiento-dato small{
+            text-align:center;
+            white-space:nowrap;
+        }
+        .movimiento-dato strong{
+            white-space:normal;
+            overflow:visible;
+            text-overflow:clip;
+            overflow-wrap:break-word;
+            word-break:normal;
+            line-height:1.22;
+            text-align:center;
+        }
+        .movimiento-cantidad{
+            grid-area:cantidad;
+            text-align:center;
+            white-space:nowrap;
+            font-size:18px;
+        }
+        .movimiento-estado{
+            grid-area:estado;
+            width:100%;
+            text-align:center;
+            white-space:nowrap;
+        }
+        .btn-editar-movimiento,
+        .btn-eliminar-movimiento{
+            width:100%;
+            min-width:0;
+            margin-top:2px;
+            padding:11px 10px;
+            font-size:14px;
+        }
+        .btn-editar-movimiento{grid-area:editar}
+        .btn-eliminar-movimiento{grid-area:eliminar}
         @media(max-width:800px){
             .movimiento-item{
-                grid-template-columns:70px minmax(0,1fr) 90px 100px;
+                grid-template-columns:72px minmax(0,1fr) 78px 92px;
+                grid-template-rows:auto auto auto;
                 grid-template-areas:
                     "hora cliente cantidad estado"
                     "hora elemento cantidad estado"
                     "editar editar eliminar eliminar";
-                gap:9px;
-                padding:12px;
+                column-gap:8px;
+                row-gap:8px;
+                padding:11px;
             }
-            .movimiento-cantidad,.movimiento-estado{align-self:center}
-            .movimiento-estado{font-size:10px;padding:9px 6px}
-            .btn-editar-movimiento,.btn-eliminar-movimiento{min-width:0;margin-top:3px;padding:10px 8px}
+            .movimiento-hora{font-size:12px}
+            .movimiento-dato small{font-size:8px;margin-bottom:3px}
+            .movimiento-dato strong{font-size:13px;line-height:1.2}
+            .movimiento-cantidad{font-size:16px}
+            .movimiento-estado{font-size:9px;padding:9px 5px}
+            .btn-editar-movimiento,.btn-eliminar-movimiento{padding:10px 8px;font-size:12px}
         }
         @media(max-width:430px){
-            .movimiento-item{grid-template-columns:62px minmax(0,1fr) 78px 88px;padding:10px;gap:8px}
+            .movimiento-item{
+                grid-template-columns:68px minmax(0,1fr) 68px 82px;
+                padding:10px;
+                column-gap:7px;
+                row-gap:7px;
+            }
             .movimiento-hora{font-size:11px}
             .movimiento-dato small{font-size:8px}
             .movimiento-dato strong{font-size:12px}
-            .movimiento-cantidad{font-size:16px}
-            .movimiento-estado{font-size:9px}
+            .movimiento-cantidad{font-size:15px}
+            .movimiento-estado{font-size:9px;padding:8px 4px}
+            .btn-editar-movimiento,.btn-eliminar-movimiento{font-size:11px;padding:9px 6px}
         }
     `;
 
