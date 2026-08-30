@@ -380,36 +380,13 @@ async function cargarCatalogos(){
 async function cargarInventario(){
     try{
         if(!dbOffline)await abrirDBOffline();
-
-        // 1) Mostrar inmediatamente la última sesión local disponible.
-        //    Preferimos hoy; si todavía no hay movimientos de hoy, mostramos
-        //    la fecha más reciente guardada localmente para que el turno arranque
-        //    con la última información conocida, sin esperar internet.
         const locales=await dbAll("movimientos");
         const localesHoy=locales.filter(r=>r.fecha===fechaTexto);
-        let fechaUltimaLocal=fechaTexto;
-
-        if(!localesHoy.length && locales.length){
-            const fechasValidas=locales
-                .map(r=>r.fecha)
-                .filter(Boolean)
-                .sort((a,b)=>{
-                    const pa=String(a).split("/").reverse().join("");
-                    const pb=String(b).split("/").reverse().join("");
-                    return pb.localeCompare(pa);
-                });
-            if(fechasValidas.length)fechaUltimaLocal=fechasValidas[0];
-        }
-
-        const baseLocal=locales.filter(r=>r.fecha===fechaUltimaLocal);
-        if(baseLocal.length){
-            registros=baseLocal.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+        if(localesHoy.length){
+            registros=localesHoy.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
             actualizarResumen();
             actualizarMovimientos();
         }
-
-        // 2) Con internet, validar/actualizar desde Sheets en segundo plano.
-        //    No bloqueamos la interfaz mientras llega la respuesta remota.
         const actualizarRemoto=async()=>{
             if(!navigator.onLine)return;
             try{
@@ -418,46 +395,27 @@ async function cargarInventario(){
                 const resultado=await respuesta.json();
                 if(!resultado.ok)throw new Error(resultado.error);
                 const servidor=resultado.registros||[];
-
-                // Conservar operaciones locales todavía no confirmadas.
                 const pendientes=registros.filter(r=>r.sincronizado===false);
                 const fusion=[...servidor];
-                pendientes.forEach(p=>{
-                    if(!fusion.some(s=>(s.fila&&p.fila&&s.fila===p.fila)||(s.id&&p.id&&s.id===p.id)))fusion.push(p);
-                });
-
-                // Si Sheets todavía no tiene datos de hoy, no destruimos la
-                // última sesión local visible. Cuando sí hay datos, cambiamos
-                // a la información confirmada del día actual.
-                if(servidor.length || localesHoy.length){
-                    registros=fusion.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
-                    actualizarResumen();
-                    actualizarMovimientos();
-                }
-
+                pendientes.forEach(p=>{if(!fusion.some(s=>(s.fila&&p.fila&&s.fila===p.fila)||(s.id&&p.id&&s.id===p.id)))fusion.push(p);});
+                registros=fusion;
                 for(const r of servidor){
                     r.sincronizado=true;
                     if(!r.id)r.id=generarIdLocal("srv");
                     await dbPut("movimientos",r);
                 }
-
-                // Persistimos la copia confirmada de hoy para el próximo arranque.
-                if(servidor.length){
-                    registros=servidor.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
-                    actualizarResumen();
-                    actualizarMovimientos();
-                }
-
+                actualizarResumen();
+                actualizarMovimientos();
                 sincronizarPendientes();
             }catch(error){
                 console.warn("No se pudo actualizar inventario remoto:",error);
-                // Si no pudimos validar, dejamos visible la última sesión local.
-                if(!baseLocal.length)mostrarMensaje("❌ No se pudo cargar el inventario","error");
+                if(!localesHoy.length)mostrarMensaje("❌ No se pudo cargar el inventario","error");
             }
         };
-
-        // Nunca bloquear el arranque por la red.
-        if(navigator.onLine)actualizarRemoto();
+        if(navigator.onLine){
+            if(localesHoy.length)actualizarRemoto();
+            else await actualizarRemoto();
+        }
     }catch(error){
         console.error(error);
         actualizarResumen();
@@ -1686,7 +1644,7 @@ async function iniciarAplicacion(){
     try{await cargarInventario();}catch(error){console.error("Error cargando inventario:",error);}
     try{if(document.getElementById("tablaXCC"))await cargarDatosXCC();}catch(error){console.warn("Error cargando XCC:",error);}
     actualizarEstadoConexion();
-    if(navigator.onLine){sincronizarPendientes().catch(error=>console.warn("Error sincronizando pendientes:",error));}
+    if(navigator.onLine){try{await sincronizarPendientes();}catch(error){console.warn("Error sincronizando pendientes:",error);}}
 }
 
 // =====================================================
