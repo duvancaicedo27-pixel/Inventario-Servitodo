@@ -593,13 +593,78 @@ function agregarEstilosMovimientos(){
         .btn-eliminar-movimiento:hover{background:#c62828;color:white}
         .movimientos-vacio{padding:25px;text-align:center;color:#8493a2;background:#f7f9fb;border:1px dashed #ccd6df;border-radius:10px}
         @media(max-width:800px){
-            .movimiento-item{grid-template-columns:65px 1fr 80px 80px}
-            .movimiento-cliente{grid-column:2}
-            .movimiento-elemento{grid-column:2}
-            .movimiento-cantidad{grid-column:3}
-            .movimiento-estado{grid-column:4}
-            .btn-editar-movimiento{grid-column:3}
-            .btn-eliminar-movimiento{grid-column:4}
+            .movimiento-item{
+                grid-template-columns:68px minmax(0,1fr) 64px 108px;
+                grid-template-rows:auto auto auto;
+                align-items:center;
+                column-gap:10px;
+                row-gap:8px;
+                padding:12px;
+            }
+            .movimiento-hora{
+                grid-column:1;
+                grid-row:1 / span 2;
+                align-self:start;
+                padding-top:3px;
+                white-space:nowrap;
+            }
+            .movimiento-cliente{
+                grid-column:2;
+                grid-row:1;
+                min-width:0;
+            }
+            .movimiento-elemento{
+                grid-column:2;
+                grid-row:2;
+                min-width:0;
+            }
+            .movimiento-cantidad{
+                grid-column:3;
+                grid-row:1 / span 2;
+                white-space:nowrap;
+                min-width:0;
+            }
+            .movimiento-estado{
+                grid-column:4;
+                grid-row:1 / span 2;
+                width:100%;
+                white-space:nowrap;
+            }
+            .btn-editar-movimiento{
+                grid-column:1 / span 2;
+                grid-row:3;
+                width:100%;
+                min-width:0;
+            }
+            .btn-eliminar-movimiento{
+                grid-column:3 / span 2;
+                grid-row:3;
+                width:100%;
+                min-width:0;
+            }
+            .movimiento-dato strong{
+                overflow:visible;
+                text-overflow:clip;
+                white-space:nowrap;
+                font-size:12px;
+                line-height:1.25;
+            }
+            .movimiento-dato small{
+                white-space:nowrap;
+            }
+        }
+        @media(max-width:390px){
+            .movimiento-item{
+                grid-template-columns:64px minmax(0,1fr) 58px 96px;
+                column-gap:8px;
+                padding:10px;
+            }
+            .movimiento-dato strong{font-size:11px;}
+            .movimiento-dato small{font-size:8px;}
+            .movimiento-hora{font-size:11px;}
+            .movimiento-cantidad{font-size:13px;}
+            .movimiento-estado{font-size:9px;}
+            .btn-editar-movimiento,.btn-eliminar-movimiento{font-size:12px;padding:8px;}
         }
     `;
 
@@ -1518,7 +1583,7 @@ function dibujarReporte(
     ctx.font="bold 18px Arial";
 
     ctx.fillText(
-        "Duvan C",
+        "Duvan Caicedo",
         f2+73,
         footerY+62
     );
@@ -1612,6 +1677,25 @@ if(modalReporte){
     });
 }
 
+function mostrarAvisoDescarga(texto){
+    let aviso=document.getElementById("avisoDescargaReporte");
+    if(!aviso){
+        aviso=document.createElement("div");
+        aviso.id="avisoDescargaReporte";
+        aviso.setAttribute("role","status");
+        aviso.setAttribute("aria-live","polite");
+        aviso.style.cssText="position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(12px);z-index:10001;background:rgba(255,255,255,.97);border:1px solid #dbe4ee;border-radius:14px;box-shadow:0 10px 28px rgba(16,43,78,.16);padding:10px 16px;font:700 13px Inter,Segoe UI,Arial,sans-serif;color:#17385d;opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;white-space:nowrap;max-width:calc(100vw - 28px);overflow:hidden;text-overflow:ellipsis;";
+        document.body.appendChild(aviso);
+    }
+    aviso.textContent=texto;
+    clearTimeout(window.__avisoDescargaTimer);
+    requestAnimationFrame(()=>{aviso.style.opacity="1";aviso.style.transform="translateX(-50%) translateY(0)";});
+    window.__avisoDescargaTimer=setTimeout(()=>{
+        aviso.style.opacity="0";
+        aviso.style.transform="translateX(-50%) translateY(12px)";
+    },2200);
+}
+
 const descargarReporte=document.getElementById("descargarReporte");
 
 if(descargarReporte){
@@ -1630,6 +1714,7 @@ if(descargarReporte){
             ".png";
 
         enlace.click();
+        mostrarAvisoDescarga("✓ Reporte diario descargado");
     });
 }
 
@@ -1719,24 +1804,106 @@ async function cargarDatosXCC(){
     }
 }
 function prepararEventosXCC(){document.getElementById("btnInventario")?.addEventListener("click",()=>cambiarModuloXCC(false));document.getElementById("btnXCC")?.addEventListener("click",()=>cambiarModuloXCC(true));document.getElementById("guardarXCCBtn")?.addEventListener("click",guardarXCCLocal);document.getElementById("reporteXCCBtn")?.addEventListener("click",generarReporteXCC);document.getElementById("cerrarReporteXCC")?.addEventListener("click",()=>document.getElementById("modalReporteXCC")?.classList.remove("visible"));document.getElementById("descargarReporteXCC")?.addEventListener("click",descargarReporteXCC);}
+let guardandoXCC=false;
+
 async function guardarXCCLocal(){
+    if(guardandoXCC)return;
     if(!datosXCC.length)return mensajeXCC("No hay datos XCC para guardar","error");
-    if(!dbOffline)await abrirDBOffline();
-    const ahora=Date.now(),fecha=fechaActualXCC();
-    const borrador=datosXCC.map(f=>({cliente:f.cliente,estibasDia:Number(f.estibasDia)||0,inventarioActual:Number(f.inventarioActual)||0,objetivo:Number(f.objetivo)||0,ultimoId:f.ultimoId||"",ultimaFecha:f.ultimaFecha||""}));
-    localStorage.setItem("servitodo_xcc_ultimaEdicion",JSON.stringify(borrador));
-    for(const f of datosXCC){
-        const r={id:generarIdLocal("xcc"),fecha,cliente:f.cliente,estibasDia:Number(f.estibasDia)||0,inventarioActual:Number(f.inventarioActual)||0,objetivo:Number(f.objetivo)||0,diasCubiertos:f.estibasDia>0?(Number(f.inventarioActual)||0)/f.estibasDia:0,faltante:(Number(f.objetivo)||0)-(Number(f.inventarioActual)||0),creado:ahora,sincronizado:false};
-        const operacionXCC={id:generarIdLocal("opxcc"),payload:{...r,accion:"registrarInventarioXCC"}};
-        await dbPutMultiple([{store:"xcc",value:r},{store:"operacionesXCC",value:operacionXCC}]);
-        detallePendientesXCC.push(operacionXCC);
-        pendientesXCC++;
+
+    guardandoXCC=true;
+    const boton=document.getElementById("guardarXCCBtn");
+    const textoOriginal=boton?boton.innerHTML:"";
+    if(boton){
+        boton.disabled=true;
+        boton.innerHTML="✓ GUARDANDO...";
     }
-    renderizarXCC();
-    actualizarEstadoConexion();
-    mensajeXCC(navigator.onLine?"✓ Guardado local. Sincronizando...":"✓ Guardado sin conexión. Quedó pendiente de sincronizar.","ok");
-    if(navigator.onLine){sincronizarXCCPendientes();programarReintentoSincronizacion();}
-    renderizarEstadoConexion();
+
+    try{
+        if(!dbOffline)await abrirDBOffline();
+        const ahora=Date.now();
+        const fecha=fechaActualXCC();
+
+        // Garantiza una sola fila por cliente dentro de una misma operación.
+        const unicos=new Map();
+        datosXCC.forEach(f=>{
+            const clave=normalizarTexto(f.cliente);
+            if(clave)unicos.set(clave,f);
+        });
+        const filas=Array.from(unicos.values());
+
+        const borrador=filas.map(f=>({
+            cliente:f.cliente,
+            estibasDia:Number(f.estibasDia)||0,
+            inventarioActual:Number(f.inventarioActual)||0,
+            objetivo:Number(f.objetivo)||0,
+            ultimoId:f.ultimoId||"",
+            ultimaFecha:f.ultimaFecha||""
+        }));
+        localStorage.setItem("servitodo_xcc_ultimaEdicion",JSON.stringify(borrador));
+
+        const operacionesPendientes=await dbAll("operacionesXCC");
+        const pendientesKeys=new Set(operacionesPendientes.map(op=>{
+            const p=op.payload||{};
+            return fecha+"|"+normalizarTexto(p.cliente);
+        }));
+
+        for(const f of filas){
+            const claveCliente=fecha+"|"+normalizarTexto(f.cliente);
+
+            // Si ya existe una operación pendiente para este cliente y fecha,
+            // no volver a crear otra. Esto evita duplicados por doble clic o
+            // por una nueva pulsación mientras la sincronización está activa.
+            if(pendientesKeys.has(claveCliente))continue;
+
+            const idLocal="xcc-"+fecha.replace(/\//g,"-")+"-"+normalizarTexto(f.cliente).replace(/[^A-Z0-9]+/g,"-");
+            const idOperacion="opxcc-"+fecha.replace(/\//g,"-")+"-"+normalizarTexto(f.cliente).replace(/[^A-Z0-9]+/g,"-");
+
+            const r={
+                id:idLocal,
+                fecha,
+                cliente:f.cliente,
+                estibasDia:Number(f.estibasDia)||0,
+                inventarioActual:Number(f.inventarioActual)||0,
+                objetivo:Number(f.objetivo)||0,
+                diasCubiertos:f.estibasDia>0?(Number(f.inventarioActual)||0)/f.estibasDia:0,
+                faltante:(Number(f.objetivo)||0)-(Number(f.inventarioActual)||0),
+                creado:ahora,
+                sincronizado:false
+            };
+
+            const operacionXCC={
+                id:idOperacion,
+                payload:{...r,accion:"registrarInventarioXCC"}
+            };
+
+            await dbPutMultiple([
+                {store:"xcc",value:r},
+                {store:"operacionesXCC",value:operacionXCC}
+            ]);
+            pendientesKeys.add(claveCliente);
+            detallePendientesXCC.push(operacionXCC);
+            pendientesXCC++;
+        }
+
+        renderizarXCC();
+        actualizarEstadoConexion();
+        mensajeXCC(navigator.onLine?"✓ Guardado local. Sincronizando...":"✓ Guardado sin conexión. Quedó pendiente de sincronizar.","ok");
+
+        if(navigator.onLine){
+            await sincronizarXCCPendientes();
+            programarReintentoSincronizacion();
+        }
+        renderizarEstadoConexion();
+    }catch(error){
+        console.error("Error guardando XCC:",error);
+        mensajeXCC("❌ No se pudo guardar el inventario XCC","error");
+    }finally{
+        guardandoXCC=false;
+        if(boton){
+            boton.disabled=false;
+            boton.innerHTML=textoOriginal||"✓ GUARDAR INVENTARIO XCC";
+        }
+    }
 }
 async function sincronizarXCCPendientes(){
     if(!navigator.onLine||!dbOffline)return;
@@ -1889,7 +2056,7 @@ async function generarReporteXCC(){
     const centroX=headerX+bloqueFecha+26;
     c.fillStyle=blanco;
     c.font="bold 22px Arial";
-    c.fillText("INVENTARIO DIARIO",centroX,48);
+    c.fillText("Inventario Diario Estibas XCC",centroX,48);
 
     c.font="bold 58px Arial";
     c.fillText("SERVITODO",centroX,99);
@@ -1924,7 +2091,7 @@ async function generarReporteXCC(){
         {titulo:"ESTIBAS/DÍA",w:180},
         {titulo:"INVENTARIO ACTUAL",w:220},
         {titulo:"DÍAS CUBIERTOS",w:190},
-        {titulo:"OBJETIVO",w:160},
+        {titulo:"OBJETIVO 15 DIAS",w:160},
         {titulo:"FALTANTE",w:160}
     ];
 
@@ -2077,7 +2244,7 @@ async function generarReporteXCC(){
     c.fillText("Elaborado por:",f2+73,footerY+32);
     c.fillStyle=azulTexto;
     c.font="bold 18px Arial";
-    c.fillText("Duvan C",f2+73,footerY+62);
+    c.fillText("Duvan Caicedo",f2+73,footerY+62);
 
     // DOCUMENTO
     const docX=f3+40;
@@ -2105,7 +2272,7 @@ async function generarReporteXCC(){
     if(img)img.src=reporteXCCData;
     document.getElementById("modalReporteXCC")?.classList.add("visible");
 }
-function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();}
+function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();mostrarAvisoDescarga("✓ Reporte XCC descargado");}
 prepararEventosXCC();
 iniciarAplicacion();
 
