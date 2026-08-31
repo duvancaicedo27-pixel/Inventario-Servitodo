@@ -137,7 +137,7 @@ document.addEventListener("click",event=>{
 // ALMACENAMIENTO LOCAL Y SINCRONIZACION
 // =====================================================
 const DB_NAME="InventarioServitodoOffline";
-const DB_VERSION=2;
+const DB_VERSION=3;
 let dbOffline=null;
 let sincronizando=false;
 let pendientesInventario=0;
@@ -158,6 +158,7 @@ function abrirDBOffline(){
             if(!db.objectStoreNames.contains("catalogos"))db.createObjectStore("catalogos",{keyPath:"id"});
             if(!db.objectStoreNames.contains("xcc"))db.createObjectStore("xcc",{keyPath:"id"});
             if(!db.objectStoreNames.contains("operacionesXCC"))db.createObjectStore("operacionesXCC",{keyPath:"id"});
+            if(!db.objectStoreNames.contains("erroresSincronizacion"))db.createObjectStore("erroresSincronizacion",{keyPath:"id"});
         };
         req.onsuccess=e=>{dbOffline=e.target.result;resolve(dbOffline)};
         req.onerror=()=>reject(req.error);
@@ -260,6 +261,49 @@ async function actualizarEstadoConexion(){
         renderizarEstadoConexion();
     }catch(e){console.warn("No se pudo actualizar pendientes",e);}
 }
+async function registrarErrorSincronizacion(op,error,origen="INVENTARIO"){
+    try{
+        const detalle=error instanceof Error?error.message:String(error||"Error desconocido");
+        await dbPut("erroresSincronizacion",{
+            id:generarIdLocal("err"),
+            origen,
+            operacionId:op?.id||"",
+            fecha:new Date().toISOString(),
+            payload:op?.payload||null,
+            error:detalle
+        });
+    }catch(e){console.warn("No se pudo guardar error de sincronización:",e);}
+}
+async function contarErroresSincronizacion(){
+    if(!dbOffline)return 0;
+    try{return (await dbAll("erroresSincronizacion")).length;}catch(e){return 0;}
+}
+function esOperacionInventarioValida(op){
+    const p=op&&op.payload;
+    if(!p||typeof p!=="object")return {ok:false,error:"Payload vacío o inválido"};
+    const accion=p.accion||"registrarInventario";
+    if(accion==="eliminarMovimiento"){
+        if(!p.localId&&!p.id&&!p.fila)return {ok:false,error:"Eliminar sin localId, id o fila"};
+        return {ok:true};
+    }
+    if(accion==="editarMovimiento"){
+        if(!p.localId&&!p.id&&!p.fila)return {ok:false,error:"Editar sin localId, id o fila"};
+        if(!String(p.cliente||"").trim())return {ok:false,error:"Editar sin cliente"};
+        if(!String(p.elemento||"").trim())return {ok:false,error:"Editar sin elemento"};
+        if(!(Number(p.cantidad)>0))return {ok:false,error:"Editar con cantidad inválida"};
+        if(!["MOÑO","MONO","PROCESO"].includes(normalizarTexto(p.estado)))return {ok:false,error:"Editar con estado inválido"};
+        return {ok:true};
+    }
+    if(accion!=="registrarInventario"&&accion!=="guardarInventario"&&p.accion){
+        return {ok:false,error:"Acción no reconocida: "+accion};
+    }
+    if(!String(p.fecha||"").trim())return {ok:false,error:"Registro sin fecha"};
+    if(!String(p.cliente||"").trim())return {ok:false,error:"Registro sin cliente"};
+    if(!String(p.elemento||"").trim())return {ok:false,error:"Registro sin elemento"};
+    if(!(Number(p.cantidad)>0))return {ok:false,error:"Registro con cantidad inválida"};
+    if(!["MOÑO","MONO","PROCESO"].includes(normalizarTexto(p.estado)))return {ok:false,error:"Registro con estado inválido"};
+    return {ok:true};
+}
 async function sincronizarPendientes(){
     if(!navigator.onLine||!dbOffline||sincronizando)return;
     sincronizando=true;
@@ -269,22 +313,56 @@ async function sincronizarPendientes(){
         pendientesInventario=ops.length;
         renderizarEstadoConexion();
         for(const op of ops){
+            const validacion=esOperacionInventarioValida(op);
+            if(!validacion.ok){
+                await registrarErrorSincronizacion(op,validacion.error,"INVENTARIO");
+                await dbDelete("operaciones",op.id);
+                detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
+                pendientesInventario=detallePendientesInventario.length;
+                continue;
+            }
             try{
                 const respuesta=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload),keepalive:true});
-                const resultado=await respuesta.json();
-                if(!resultado.ok)throw new Error(resultado.error||"Error de sincronización");
-                if(op.payload.accion==="eliminarMovimiento"){
-                    const idx=registros.findIndex(r=>r.id===op.payload.localId);
+                let resultado=null;
+                try{resultado=await respuesta.json();}catch(e){
+                    throw new Error("Respuesta inválida del servidor (HTTP "+respuesta.status+")");
+                }
+                if(!respuesta.ok)throw new Error(resultado?.error||("HTTP "+respuesta.status));
+                if(!resultado?.ok)throw new Error(resultado?.error||"Error de sincronización");
+                const accion=op.payload?.accion||"registrarInventario";
+                if(accion==="eliminarMovimiento"){
+                    const idx=registros.findIndex(r=>r.id===op.payload.localId||r.id===op.payload.id);
                     if(idx>=0)registros.splice(idx,1);
+                    await dbDelete("movimientos",op.payload.localId||op.payload.id);
+                }else if(accion==="editarMovimiento"){
+                    const item=registros.find(r=>r.id===op.payload.localId||r.id===op.payload.id);
+                    if(item){
+                        item.sincronizado=true;
+                        item.fila=resultado.fila||item.fila;
+                        item.id=resultado.id||item.id;
+                        await dbPut("movimientos",item);
+                    }
                 }else{
-                    const item=registros.find(r=>r.id===op.payload.localId);
-                    if(item){item.sincronizado=true;item.fila=resultado.fila||item.fila;await dbPut("movimientos",item);}
+                    const item=registros.find(r=>r.id===op.payload.localId||r.id===op.payload.id);
+                    if(item){item.sincronizado=true;item.fila=resultado.fila||item.fila;item.id=resultado.id||item.id;await dbPut("movimientos",item);}
                 }
                 await dbDelete("operaciones",op.id);
                 detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
                 pendientesInventario=detallePendientesInventario.length;
                 renderizarEstadoConexion();
-            }catch(e){console.warn("Pendiente no sincronizado",e);break;}
+            }catch(e){
+                const mensaje=String(e?.message||e||"");
+                const esErrorPermanente=/sin cliente|sin elemento|cantidad inválida|estado inválido|sin fecha|acción no reconocida|payload|HTTP 4\d{2}/i.test(mensaje);
+                if(esErrorPermanente){
+                    await registrarErrorSincronizacion(op,e,"INVENTARIO");
+                    await dbDelete("operaciones",op.id);
+                    detallePendientesInventario=detallePendientesInventario.filter(x=>x.id!==op.id);
+                    pendientesInventario=detallePendientesInventario.length;
+                    continue;
+                }
+                console.warn("Pendiente no sincronizado; se conserva para reintento",e);
+                break;
+            }
         }
     }finally{
         sincronizando=false;
@@ -302,7 +380,7 @@ function programarReintentoSincronizacion(){
         if(!navigator.onLine){clearInterval(intervaloSincronizacion);intervaloSincronizacion=null;return;}
         sincronizarPendientes();
         sincronizarXCCPendientes();
-    },3000);
+    },5000);
 }
 window.addEventListener("online",()=>{
     renderizarEstadoConexion();
@@ -333,9 +411,7 @@ async function cargarCatalogos(){
             inicial.value="";
             inicial.textContent="Seleccionar cliente";
             clienteSelect.appendChild(inicial);
-            [...clientes]
-                .sort((a,b)=>String(a||"").localeCompare(String(b||""),"es",{sensitivity:"base"}))
-                .forEach(cliente=>{
+            clientes.forEach(cliente=>{
                 const option=document.createElement("option");
                 option.value=cliente;
                 option.textContent=cliente;
@@ -426,9 +502,10 @@ async function cargarInventario(){
     }
 }
 
+let registrandoInventario=false;
 registrarBtn.addEventListener("click",registrarInventario);
-
 async function registrarInventario(){
+    if(registrandoInventario)return;
     const cliente=clienteSelect.value.trim();
     const elemento=elementoActual.trim();
     const cantidad=Number(document.getElementById("cantidad").value);
@@ -439,11 +516,13 @@ async function registrarInventario(){
     if(!estadoSeleccionado){mostrarMensaje("Selecciona Moño o Proceso.","error");return;}
     const boton=registrarBtn;
     let localId="";
+    registrandoInventario=true;
+    if(boton)boton.disabled=true;
     try{
         if(!dbOffline)await abrirDBOffline();
         localId=generarIdLocal("mov");
         const datos={id:localId,fecha:fechaTexto,cliente,elemento,cantidad,estado:estadoSeleccionado,notas,hora:new Date().toLocaleTimeString("es-CO",{hour12:false}),sincronizado:false};
-        const operacion={id:generarIdLocal("op"),payload:{...datos,localId}};
+        const operacion={id:generarIdLocal("op"),payload:{...datos,localId,accion:"registrarInventario"}};
         registros.push(datos);
         await dbPutMultiple([{store:"movimientos",value:datos},{store:"operaciones",value:operacion}]);
         detallePendientesInventario.push(operacion);
@@ -459,9 +538,10 @@ async function registrarInventario(){
         }
     }catch(error){
         console.error("Error al registrar:",error);
-        registros=registros.filter(r=>r.id!==localId);
+        if(localId){registros=registros.filter(r=>r.id!==localId);try{await dbDelete("movimientos",localId);}catch(e){}}
         mostrarMensaje("❌ No se pudo guardar: "+(error.message||"error local"),"error");
     }finally{
+        registrandoInventario=false;
         if(boton)boton.disabled=false;
     }
 }
@@ -501,11 +581,7 @@ function actualizarResumen(){
         if(estado==="PROCESO")agrupado[clave].proceso+=cantidad;
     });
 
-    const lista=Object.values(agrupado).sort((a,b)=>{
-        const clienteCmp=String(a.cliente||"").localeCompare(String(b.cliente||""),"es",{sensitivity:"base"});
-        if(clienteCmp!==0)return clienteCmp;
-        return String(a.elemento||"").localeCompare(String(b.elemento||""),"es",{sensitivity:"base"});
-    });
+    const lista=Object.values(agrupado);
     const tbody=document.getElementById("tablaResumen");
 
     if(!tbody)return;
@@ -720,6 +796,23 @@ function actualizarMovimientos(){
     });
 }
 
+async function actualizarOperacionRegistro(registro,modo){
+    const operaciones=await dbAll("operaciones");
+    const pendientes=operaciones.filter(op=>op?.payload?.localId===registro.id||op?.payload?.id===registro.id);
+    const pendienteGuardar=pendientes.find(op=>!op?.payload?.accion||op.payload.accion==="registrarInventario");
+    if(modo==="editar"&&pendienteGuardar){
+        pendienteGuardar.payload={...pendienteGuardar.payload,cliente:registro.cliente,elemento:registro.elemento,cantidad:registro.cantidad,estado:registro.estado,notas:registro.notas};
+        await dbPut("operaciones",pendienteGuardar);
+        return;
+    }
+    if(modo==="eliminar"){
+        for(const op of pendientes){await dbDelete("operaciones",op.id);}
+        if(!registro.fila)return;
+        await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"eliminarMovimiento",fila:Number(registro.fila)||null,id:registro.id,localId:registro.id}});
+        return;
+    }
+    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"editarMovimiento",fila:Number(registro.fila)||null,id:registro.id,localId:registro.id,cliente:registro.cliente,elemento:registro.elemento,cantidad:registro.cantidad,estado:registro.estado,notas:registro.notas}});
+}
 async function editarMovimiento(registro){
     const nuevaCantidad=prompt("Cantidad del movimiento:",registro.cantidad);if(nuevaCantidad===null)return;
     const cantidad=Number(String(nuevaCantidad).replace(/\./g,"").replace(",","."));if(!cantidad||cantidad<=0){mostrarMensaje("❌ La cantidad no es válida.","error");return;}
@@ -730,18 +823,20 @@ async function editarMovimiento(registro){
     if(!dbOffline)await abrirDBOffline();
     registro.cantidad=cantidad;registro.estado=estado==="MONO"?"MOÑO":"PROCESO";registro.notas=nuevasNotas;registro.sincronizado=false;
     await dbPut("movimientos",registro);
-    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"editarMovimiento",fila:Number(registro.fila)||null,localId:registro.id,cliente:registro.cliente,elemento:registro.elemento,cantidad,estado:registro.estado,notas:nuevasNotas}});
+    await actualizarOperacionRegistro(registro,"editar");
     actualizarResumen();actualizarMovimientos();actualizarEstadoConexion();mostrarMensaje(navigator.onLine?"✓ Cambio guardado. Sincronizando...":"✓ Cambio guardado sin conexión","ok");
     if(navigator.onLine)sincronizarPendientes();
 }
-
 async function eliminarMovimiento(registro){
     if(!confirm("¿Seguro que deseas eliminar este movimiento?"))return;
     if(!dbOffline)await abrirDBOffline();
+    const teniaFila=Number(registro.fila)>1;
     registros=registros.filter(r=>r.id!==registro.id);
     await dbDelete("movimientos",registro.id);
-    await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"eliminarMovimiento",fila:Number(registro.fila)||null,localId:registro.id}});
-    actualizarResumen();actualizarMovimientos();actualizarEstadoConexion();mostrarMensaje(navigator.onLine?"✓ Eliminado. Sincronizando...":"✓ Eliminado sin conexión","ok");
+    await actualizarOperacionRegistro(registro,"eliminar");
+    actualizarResumen();actualizarMovimientos();actualizarEstadoConexion();
+    if(teniaFila)mostrarMensaje(navigator.onLine?"✓ Eliminado. Sincronizando...":"✓ Eliminado sin conexión","ok");
+    else mostrarMensaje("✓ Eliminado del dispositivo. No había un registro remoto que borrar.","ok");
     if(navigator.onLine)sincronizarPendientes();
 }
 
@@ -850,16 +945,7 @@ function prepararDatosReporte(){
         if(estado==="PROCESO")elemento.proceso+=cantidad;
     });
 
-    const gruposOrdenados={};
-    Object.keys(grupos)
-        .sort((a,b)=>String(a||"").localeCompare(String(b||""),"es",{sensitivity:"base"}))
-        .forEach(cliente=>{
-            gruposOrdenados[cliente]=grupos[cliente].sort((a,b)=>
-                String(a.elemento||"").localeCompare(String(b.elemento||""),"es",{sensitivity:"base"})
-            );
-        });
-
-    return gruposOrdenados;
+    return grupos;
 }
 
 function calcularAltoReporte(grupos){
@@ -1723,14 +1809,9 @@ if(descargarReporte){
 
         enlace.href=imagen.src;
 
-        const fechaDescarga=new Date().toLocaleDateString(
-            "es-CO",
-            {day:"2-digit",month:"2-digit",year:"numeric"}
-        );
-
         enlace.download=
             "Inventario_Servitodo_"+
-            fechaDescarga.replace(/\//g,"-")+
+            fechaTexto.replace(/\//g,"-")+
             ".png";
 
         enlace.click();
@@ -1870,13 +1951,14 @@ async function guardarXCCLocal(){
         for(const f of filas){
             const claveCliente=fecha+"|"+normalizarTexto(f.cliente);
 
-            // Si ya existe una operación pendiente para este cliente y fecha,
-            // no volver a crear otra. Esto evita duplicados por doble clic o
-            // por una nueva pulsación mientras la sincronización está activa.
-            if(pendientesKeys.has(claveCliente))continue;
-
             const idLocal="xcc-"+fecha.replace(/\//g,"-")+"-"+normalizarTexto(f.cliente).replace(/[^A-Z0-9]+/g,"-");
             const idOperacion="opxcc-"+fecha.replace(/\//g,"-")+"-"+normalizarTexto(f.cliente).replace(/[^A-Z0-9]+/g,"-");
+            const pendienteExistente=operacionesPendientes.find(op=>op?.payload&&fecha+"|"+normalizarTexto(op.payload.cliente)===claveCliente);
+            if(pendienteExistente){
+                pendienteExistente.payload={...pendienteExistente.payload,fecha,cliente:f.cliente,estibasDia:Number(f.estibasDia)||0,inventarioActual:Number(f.inventarioActual)||0,objetivo:Number(f.objetivo)||0,diasCubiertos:f.estibasDia>0?(Number(f.inventarioActual)||0)/f.estibasDia:0,faltante:(Number(f.objetivo)||0)-(Number(f.inventarioActual)||0),accion:"registrarInventarioXCC"};
+                await dbPut("operacionesXCC",pendienteExistente);
+                continue;
+            }
 
             const r={
                 id:idLocal,
@@ -1934,9 +2016,11 @@ async function sincronizarXCCPendientes(){
         renderizarEstadoConexion();
         for(const op of ops){
             try{
-                const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(op.payload),keepalive:true});
-                const d=await r.json();
-                if(!d.ok)throw new Error(d.error||"Error XCC");
+                const p=op?.payload||{};
+                if(!p.cliente||!p.fecha||!(Number(p.estibasDia)>=0))throw new Error("Operación XCC incompleta");
+                const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(p),keepalive:true});
+                let d=null;try{d=await r.json();}catch(e){throw new Error("Respuesta inválida del servidor XCC (HTTP "+r.status+")");}
+                if(!r.ok||!d?.ok)throw new Error(d?.error||("HTTP "+r.status));
                 const registro=op.payload;
                 registro.sincronizado=true;
                 if(d.fila)registro.fila=d.fila;
@@ -1946,7 +2030,15 @@ async function sincronizarXCCPendientes(){
                 pendientesXCC=detallePendientesXCC.length;
                 renderizarEstadoConexion();
             }catch(e){
-                console.warn("XCC pendiente",e);
+                const msg=String(e?.message||e||"");
+                if(/incompleta|HTTP 4\d{2}|obligatorio|No existe la pestaña|Operación XCC/i.test(msg)){
+                    await registrarErrorSincronizacion(op,e,"XCC");
+                    await dbDelete("operacionesXCC",op.id);
+                    detallePendientesXCC=detallePendientesXCC.filter(x=>x.id!==op.id);
+                    pendientesXCC=detallePendientesXCC.length;
+                    continue;
+                }
+                console.warn("XCC pendiente no sincronizado; se conserva para reintento",e);
                 break;
             }
         }
@@ -2292,18 +2384,7 @@ async function generarReporteXCC(){
     if(img)img.src=reporteXCCData;
     document.getElementById("modalReporteXCC")?.classList.add("visible");
 }
-function descargarReporteXCC(){
-    if(!reporteXCCData)return;
-    const a=document.createElement("a");
-    a.href=reporteXCCData;
-    const fechaDescarga=new Date().toLocaleDateString(
-        "es-CO",
-        {day:"2-digit",month:"2-digit",year:"numeric"}
-    );
-    a.download="Inventario_XCC_"+fechaDescarga.replace(/\//g,"-")+".png";
-    a.click();
-    mostrarAvisoDescarga("✓ Reporte XCC descargado");
-}
+function descargarReporteXCC(){if(!reporteXCCData)return;const a=document.createElement("a");a.href=reporteXCCData;a.download="Inventario_XCC_"+fechaActualXCC().replace(/\//g,"-")+".png";a.click();mostrarAvisoDescarga("✓ Reporte XCC descargado");}
 prepararEventosXCC();
 iniciarAplicacion();
 
