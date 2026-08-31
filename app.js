@@ -877,7 +877,19 @@ async function actualizarOperacionRegistro(registro,modo){
     if(modo==="eliminar"){
         for(const op of pendientes){await dbDelete("operaciones",op.id);}
         if(!registro.fila)return;
-        await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"eliminarMovimiento",fila:Number(registro.fila)||null,id:registro.id,localId:registro.id}});
+        await dbPut("operaciones",{id:generarIdLocal("op"),payload:{
+            accion:"eliminarMovimiento",
+            fila:Number(registro.fila)||null,
+            id:registro.id,
+            localId:registro.id,
+            fecha:registro.fecha||fechaTexto,
+            hora:registro.hora||"",
+            cliente:registro.cliente||"",
+            elemento:registro.elemento||"",
+            cantidad:Number(registro.cantidad)||0,
+            estado:registro.estado||"",
+            notas:registro.notas||""
+        }});
         return;
     }
     await dbPut("operaciones",{id:generarIdLocal("op"),payload:{accion:"editarMovimiento",fila:Number(registro.fila)||null,id:registro.id,localId:registro.id,cliente:registro.cliente,elemento:registro.elemento,cantidad:registro.cantidad,estado:registro.estado,notas:registro.notas}});
