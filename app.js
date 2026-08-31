@@ -494,12 +494,22 @@ async function cargarInventario(){
     try{
         if(!dbOffline)await abrirDBOffline();
         const locales=await dbAll("movimientos");
+        const operacionesLocales=await dbAll("operaciones");
         const localesHoy=locales.filter(r=>r.fecha===fechaTexto);
-        if(localesHoy.length){
-            registros=localesHoy.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
-            actualizarResumen();
-            actualizarMovimientos();
-        }
+
+        // Cuando hay Internet, Google Sheets es la fuente principal.
+        // No mostramos primero datos locales sincronizados o antiguos.
+        // Solo conservamos movimientos locales que realmente tengan una
+        // operación pendiente de sincronización para el día actual.
+        const idsPendientes=new Set(
+            operacionesLocales
+                .map(op=>op?.payload?.localId||op?.payload?.id)
+                .filter(Boolean)
+        );
+        const pendientesLocalesHoy=localesHoy.filter(r=>{
+            return r.sincronizado===false && idsPendientes.has(r.id);
+        });
+
         const actualizarRemoto=async()=>{
             if(!navigator.onLine)return;
             try{
@@ -507,27 +517,50 @@ async function cargarInventario(){
                 if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
                 const resultado=await respuesta.json();
                 if(!resultado.ok)throw new Error(resultado.error);
-                const servidor=resultado.registros||[];
-                const pendientes=registros.filter(r=>r.sincronizado===false);
+                const servidor=Array.isArray(resultado.registros)?resultado.registros:[];
+
+                // Sheets es la base real. Solo agregamos lo que todavía
+                // está pendiente y no existe en la respuesta del servidor.
                 const fusion=[...servidor];
-                pendientes.forEach(p=>{if(!fusion.some(s=>(s.fila&&p.fila&&s.fila===p.fila)||(s.id&&p.id&&s.id===p.id)))fusion.push(p);});
-                registros=fusion;
+                pendientesLocalesHoy.forEach(p=>{
+                    const yaExiste=fusion.some(s=>
+                        (s.fila&&p.fila&&s.fila===p.fila) ||
+                        (s.id&&p.id&&s.id===p.id)
+                    );
+                    if(!yaExiste)fusion.push(p);
+                });
+
+                registros=fusion.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+
                 for(const r of servidor){
                     r.sincronizado=true;
                     if(!r.id)r.id=generarIdLocal("srv");
                     await dbPut("movimientos",r);
                 }
+
                 actualizarResumen();
                 actualizarMovimientos();
                 sincronizarPendientes();
             }catch(error){
                 console.warn("No se pudo actualizar inventario remoto:",error);
-                if(!localesHoy.length)mostrarMensaje("❌ No se pudo cargar el inventario","error");
+                // Si falla la consulta remota, mostramos únicamente datos
+                // locales pendientes de sincronizar, no inventario antiguo.
+                registros=pendientesLocalesHoy.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+                actualizarResumen();
+                actualizarMovimientos();
+                mostrarMensaje("❌ No se pudo cargar el inventario real de Sheets","error");
             }
         };
+
         if(navigator.onLine){
-            if(localesHoy.length)actualizarRemoto();
-            else await actualizarRemoto();
+            // Esperamos la respuesta de Sheets antes de pintar el inventario.
+            // Esto evita el efecto de mostrar primero un inventario local falso.
+            await actualizarRemoto();
+        }else{
+            // Sin Internet: solo se muestran movimientos realmente pendientes.
+            registros=pendientesLocalesHoy.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+            actualizarResumen();
+            actualizarMovimientos();
         }
     }catch(error){
         console.error(error);
@@ -955,7 +988,7 @@ function prepararDatosReporte(){
     const grupos={};
 
     registros.forEach(registro=>{
-        const cliente=String(registro.cliente||"").trim();
+        const cliente=registro.cliente;
 
         if(!grupos[cliente])grupos[cliente]=[];
 
@@ -980,19 +1013,7 @@ function prepararDatosReporte(){
         if(estado==="PROCESO")elemento.proceso+=cantidad;
     });
 
-    // Ordenar clientes alfabéticamente para el reporte.
-    // Se ordena sobre la misma estructura que luego recorre dibujarReporte().
-    const gruposOrdenados={};
-    Object.keys(grupos)
-        .sort((a,b)=>normalizarTexto(a).localeCompare(normalizarTexto(b),"es",{numeric:true,sensitivity:"base"}))
-        .forEach(cliente=>{
-            grupos[cliente].sort((a,b)=>
-                normalizarTexto(a.elemento).localeCompare(normalizarTexto(b.elemento),"es",{numeric:true,sensitivity:"base"})
-            );
-            gruposOrdenados[cliente]=grupos[cliente];
-        });
-
-    return gruposOrdenados;
+    return grupos;
 }
 
 function calcularAltoReporte(grupos){
