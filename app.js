@@ -495,49 +495,82 @@ async function cargarInventario(){
         if(!dbOffline)await abrirDBOffline();
         const locales=await dbAll("movimientos");
         const localesHoy=locales.filter(r=>r.fecha===fechaTexto);
-        if(localesHoy.length){
-            registros=localesHoy.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
-            actualizarResumen();
+
+        // Cuando hay Internet, Google Sheets es la fuente principal.
+        // No mostrar primero el inventario local para evitar el efecto
+        // de "inventario viejo" seguido por el inventario real.
+        if(navigator.onLine){
+            registros=[];
+            const tbody=document.getElementById("tablaResumen");
+            if(tbody)tbody.innerHTML=`<tr><td colspan="5" class="empty">Consultando inventario real...</td></tr>`;
             actualizarMovimientos();
-        }
-        const actualizarRemoto=async()=>{
-            if(!navigator.onLine)return;
+            actualizarResumen();
+
             try{
                 const respuesta=await fetch(API_URL+"?accion=obtenerInventario&fecha="+encodeURIComponent(fechaTexto)+"&_="+Date.now(),{cache:"no-store"});
                 if(!respuesta.ok)throw new Error("HTTP "+respuesta.status);
                 const resultado=await respuesta.json();
-                if(!resultado.ok)throw new Error(resultado.error);
-                const servidor=resultado.registros||[];
-                const pendientes=registros.filter(r=>r.sincronizado===false);
+                if(!resultado.ok)throw new Error(resultado.error||"La API devolvió un error");
+
+                const servidor=Array.isArray(resultado.registros)?resultado.registros:[];
+
+                // Solo conservar datos locales que todavía estén pendientes
+                // de sincronizar. Los registros ya sincronizados se toman de Sheets.
+                const pendientes=localesHoy.filter(r=>r.sincronizado===false);
                 const fusion=[...servidor];
-                pendientes.forEach(p=>{if(!fusion.some(s=>(s.fila&&p.fila&&s.fila===p.fila)||(s.id&&p.id&&s.id===p.id)))fusion.push(p);});
-                registros=fusion;
+
+                pendientes.forEach(p=>{
+                    const duplicado=fusion.some(s=>
+                        (s.fila&&p.fila&&s.fila===p.fila) ||
+                        (s.id&&p.id&&s.id===p.id) ||
+                        (
+                            s.fecha===p.fecha &&
+                            normalizarTexto(s.cliente)===normalizarTexto(p.cliente) &&
+                            normalizarTexto(s.elemento)===normalizarTexto(p.elemento) &&
+                            Number(s.cantidad)===Number(p.cantidad) &&
+                            normalizarTexto(s.estado)===normalizarTexto(p.estado) &&
+                            (s.hora||"") === (p.hora||"")
+                        )
+                    );
+                    if(!duplicado)fusion.push(p);
+                });
+
+                registros=fusion.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+
                 for(const r of servidor){
                     r.sincronizado=true;
                     if(!r.id)r.id=generarIdLocal("srv");
                     await dbPut("movimientos",r);
                 }
+
                 actualizarResumen();
                 actualizarMovimientos();
                 sincronizarPendientes();
             }catch(error){
                 console.warn("No se pudo actualizar inventario remoto:",error);
-                if(!localesHoy.length)mostrarMensaje("❌ No se pudo cargar el inventario","error");
+                // Si falla la consulta al servidor, mostrar únicamente
+                // operaciones locales que realmente están pendientes.
+                registros=localesHoy.filter(r=>r.sincronizado===false);
+                actualizarResumen();
+                actualizarMovimientos();
+                mostrarMensaje("⚠ No se pudo consultar Google Sheets. Mostrando solo pendientes locales.","error");
             }
-        };
-        if(navigator.onLine){
-            if(localesHoy.length)actualizarRemoto();
-            else await actualizarRemoto();
+            return;
         }
+
+        // Sin Internet: usar la información local disponible.
+        registros=localesHoy.sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+        actualizarResumen();
+        actualizarMovimientos();
     }catch(error){
         console.error(error);
+        registros=[];
         actualizarResumen();
         actualizarMovimientos();
         if(navigator.onLine)mostrarMensaje("❌ No se pudo cargar el inventario","error");
     }
 }
 
-let registrandoInventario=false;
 registrarBtn.addEventListener("click",registrarInventario);
 async function registrarInventario(){
     if(registrandoInventario)return;
