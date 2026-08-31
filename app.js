@@ -955,7 +955,7 @@ function prepararDatosReporte(){
     const grupos={};
 
     registros.forEach(registro=>{
-        const cliente=registro.cliente;
+        const cliente=String(registro.cliente||"").trim();
 
         if(!grupos[cliente])grupos[cliente]=[];
 
@@ -980,7 +980,19 @@ function prepararDatosReporte(){
         if(estado==="PROCESO")elemento.proceso+=cantidad;
     });
 
-    return grupos;
+    // Ordenar clientes alfabéticamente para el reporte.
+    // Se ordena sobre la misma estructura que luego recorre dibujarReporte().
+    const gruposOrdenados={};
+    Object.keys(grupos)
+        .sort((a,b)=>normalizarTexto(a).localeCompare(normalizarTexto(b),"es",{numeric:true,sensitivity:"base"}))
+        .forEach(cliente=>{
+            grupos[cliente].sort((a,b)=>
+                normalizarTexto(a.elemento).localeCompare(normalizarTexto(b.elemento),"es",{numeric:true,sensitivity:"base"})
+            );
+            gruposOrdenados[cliente]=grupos[cliente];
+        });
+
+    return gruposOrdenados;
 }
 
 function calcularAltoReporte(grupos){
