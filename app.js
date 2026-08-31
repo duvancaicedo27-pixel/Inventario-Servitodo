@@ -571,6 +571,7 @@ async function cargarInventario(){
     }
 }
 
+let registrandoInventario=false;
 registrarBtn.addEventListener("click",registrarInventario);
 async function registrarInventario(){
     if(registrandoInventario)return;
