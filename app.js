@@ -140,8 +140,6 @@ const DB_NAME="InventarioServitodoOffline";
 const DB_VERSION=3;
 let dbOffline=null;
 let sincronizando=false;
-let operacionSincronizandoId="";
-let operacionSincronizandoOrigen="";
 let pendientesInventario=0;
 let pendientesXCC=0;
 let intervaloSincronizacion=null;
@@ -200,16 +198,6 @@ function dbAll(store){
     });
 }
 function generarIdLocal(prefijo="id"){return prefijo+"-"+Date.now()+"-"+Math.random().toString(36).slice(2,10)}
-function obtenerDatosCola(op,origen="INVENTARIO"){
-    const payload=(op&&op.payload&&typeof op.payload==="object")?op.payload:{};
-    let base={...payload};
-    if(origen==="INVENTARIO"){
-        const localId=payload.localId||payload.id;
-        const local=localId?registros.find(r=>r.id===localId):null;
-        if(local)base={...local,...base};
-    }
-    return base;
-}
 function renderizarColaSincronizacion(){
     let panel=document.getElementById("colaSincronizacion");
     if(!panel){
@@ -217,7 +205,7 @@ function renderizarColaSincronizacion(){
         panel.id="colaSincronizacion";
         document.body.appendChild(panel);
         const st=document.createElement("style");
-        st.textContent=`#colaSincronizacion{position:fixed;right:18px;bottom:72px;width:min(420px,calc(100vw - 36px));max-height:55vh;overflow:auto;z-index:9998;background:#fff;border:1px solid #d9e2eb;border-radius:14px;box-shadow:0 14px 35px rgba(16,43,78,.16);padding:13px;display:none;font-family:Inter,Segoe UI,Arial,sans-serif;color:#17385d}.cola-titulo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;color:#17385d;font-size:12px;font-weight:900}.cola-subtitulo{color:#71829a;font-size:10px;font-weight:700}.cola-actual{padding:9px 10px;margin-bottom:9px;border-radius:9px;background:#eef5fd;color:#195db7;font-size:10px;font-weight:900;line-height:1.35}.cola-lista{display:grid;gap:8px}.cola-item{border:1px solid #e0e7ef;border-radius:10px;padding:10px;background:#fff}.cola-item.actual{border-color:#9fc4ec;box-shadow:0 0 0 2px rgba(25,93,183,.08);background:#fbfdff}.cola-item-tipo{display:inline-flex;align-items:center;padding:4px 7px;border-radius:6px;background:#eef4fa;color:#195db7;font-size:9px;font-weight:900;letter-spacing:.3px;margin-bottom:7px}.cola-item-linea{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}.cola-item-info strong{display:block;color:#17385d;font-size:12px;line-height:1.25}.cola-item-info span{display:block;color:#6f8298;font-size:10px;margin-top:3px;line-height:1.3}.cola-item-estado{font-size:9px;font-weight:900;white-space:nowrap;padding:5px 7px;border-radius:6px;background:#fff4d7;color:#9a6800}.cola-item.inventario .cola-item-tipo{background:#eaf4ee;color:#168548}.cola-item.xcc .cola-item-tipo{background:#eef0fb;color:#7140a8}@media(max-width:600px){#colaSincronizacion{right:10px;bottom:66px;width:calc(100vw - 20px);max-height:48vh}.cola-item-info strong{font-size:11px}.cola-item-info span{font-size:9px}}`;
+        st.textContent=`#colaSincronizacion{position:fixed;right:18px;bottom:72px;width:min(420px,calc(100vw - 36px));max-height:55vh;overflow:auto;z-index:9998;background:#fff;border:1px solid #d9e2eb;border-radius:14px;box-shadow:0 14px 35px rgba(16,43,78,.16);padding:13px;display:none;font-family:Inter,Segoe UI,Arial,sans-serif;color:#17385d}.cola-titulo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;color:#17385d;font-size:12px;font-weight:900}.cola-subtitulo{color:#71829a;font-size:10px;font-weight:700}.cola-lista{display:grid;gap:8px}.cola-item{border:1px solid #e0e7ef;border-radius:10px;padding:10px;background:#fff}.cola-item-tipo{display:inline-flex;align-items:center;padding:4px 7px;border-radius:6px;background:#eef4fa;color:#195db7;font-size:9px;font-weight:900;letter-spacing:.3px;margin-bottom:7px}.cola-item-linea{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}.cola-item-info strong{display:block;color:#17385d;font-size:12px;line-height:1.25}.cola-item-info span{display:block;color:#6f8298;font-size:10px;margin-top:3px;line-height:1.3}.cola-item-estado{font-size:9px;font-weight:900;white-space:nowrap;padding:5px 7px;border-radius:6px;background:#fff4d7;color:#9a6800}.cola-item.inventario .cola-item-tipo{background:#eaf4ee;color:#168548}.cola-item.xcc .cola-item-tipo{background:#eef0fb;color:#7140a8}.cola-vacio{padding:7px 2px;color:#7c8ea2;font-size:10px}@media(max-width:600px){#colaSincronizacion{right:10px;bottom:66px;width:calc(100vw - 20px);max-height:48vh}}`;
         document.head.appendChild(st);
     }
     const total=detallePendientesInventario.length+detallePendientesXCC.length;
@@ -230,37 +218,19 @@ function renderizarColaSincronizacion(){
         firmaNotificacion="";
         return;
     }
-    const inventario=detallePendientesInventario.map(op=>{
-        const p=obtenerDatosCola(op,"INVENTARIO");
-        const actual=sincronizando&&operacionSincronizandoOrigen==="INVENTARIO"&&op.id===operacionSincronizandoId;
-        return`<div class="cola-item inventario ${actual?"actual":""}"><div class="cola-item-tipo">INVENTARIO</div><div class="cola-item-linea"><div class="cola-item-info"><strong>${escaparHTML(p.cliente||"Sin cliente")} · ${escaparHTML(p.elemento||"Sin elemento")}</strong><span>${formatear(p.cantidad)} und · ${escaparHTML(p.estado||"Sin estado")}${p.hora?" · "+escaparHTML(p.hora):""}</span></div><div class="cola-item-estado">${actual?"SINCRONIZANDO":"PENDIENTE"}</div></div></div>`
-    }).join("");
-    const xcc=detallePendientesXCC.map(op=>{
-        const p=obtenerDatosCola(op,"XCC");
-        const actual=sincronizando&&operacionSincronizandoOrigen==="XCC"&&op.id===operacionSincronizandoId;
-        return`<div class="cola-item xcc ${actual?"actual":""}"><div class="cola-item-tipo">ESTIBAS XCC</div><div class="cola-item-linea"><div class="cola-item-info"><strong>${escaparHTML(p.cliente||"Sin cliente")}</strong><span>${formatear(p.inventarioActual)} estibas · objetivo ${formatear(p.objetivo)}</span></div><div class="cola-item-estado">${actual?"SINCRONIZANDO":"PENDIENTE"}</div></div></div>`
-    }).join("");
-    let actualTexto="";
-    if(sincronizando&&operacionSincronizandoId){
-        const lista=operacionSincronizandoOrigen==="XCC"?detallePendientesXCC:detallePendientesInventario;
-        const op=lista.find(x=>x.id===operacionSincronizandoId);
-        if(op){
-            const p=obtenerDatosCola(op,operacionSincronizandoOrigen);
-            actualTexto=operacionSincronizandoOrigen==="XCC"
-                ? `Sincronizando XCC: ${p.cliente||"Cliente no disponible"} · ${formatear(p.inventarioActual)} estibas`
-                : `Sincronizando: ${p.cliente||"Cliente no disponible"} · ${p.elemento||"Elemento no disponible"} · ${formatear(p.cantidad)} und`;
-        }
-    }
-    const firma=JSON.stringify({total,inv:detallePendientesInventario.map(x=>x.id),xcc:detallePendientesXCC.map(x=>x.id),sincronizando,operacionSincronizandoId,operacionSincronizandoOrigen});
+    const inventario=detallePendientesInventario.map(op=>{const p=op.payload||{};return`<div class="cola-item inventario"><div class="cola-item-tipo">INVENTARIO</div><div class="cola-item-linea"><div class="cola-item-info"><strong>${escaparHTML(p.cliente||"Sin cliente")} · ${escaparHTML(p.elemento||"Sin elemento")}</strong><span>${formatear(p.cantidad)} und · ${escaparHTML(p.estado||"Sin estado")}${p.hora?" · "+escaparHTML(p.hora):""}</span></div><div class="cola-item-estado">${sincronizando?"SINCRONIZANDO":"PENDIENTE"}</div></div></div>`}).join("");
+    const xcc=detallePendientesXCC.map(op=>{const p=op.payload||{};return`<div class="cola-item xcc"><div class="cola-item-tipo">ESTIBAS XCC</div><div class="cola-item-linea"><div class="cola-item-info"><strong>${escaparHTML(p.cliente||"Sin cliente")}</strong><span>${formatear(p.inventarioActual)} estibas · objetivo ${formatear(p.objetivo)}</span></div><div class="cola-item-estado">${sincronizando?"SINCRONIZANDO":"PENDIENTE"}</div></div></div>`}).join("");
+    const firma=JSON.stringify({total,inv:detallePendientesInventario.map(x=>x.id),xcc:detallePendientesXCC.map(x=>x.id),sincronizando});
     const cambio=firma!==firmaNotificacion;
     firmaNotificacion=firma;
-    panel.innerHTML=`<div class="cola-titulo"><span>${sincronizando?"Sincronizando...":"Pendientes de sincronizar"}</span><span class="cola-subtitulo">${total} pendiente${total===1?"":"s"}</span></div>${actualTexto?`<div class="cola-actual">${escaparHTML(actualTexto)}</div>`:""}<div class="cola-lista">${inventario}${xcc}</div>`;
+    panel.innerHTML=`<div class="cola-titulo"><span>${sincronizando?"Sincronizando...":"Pendientes de sincronizar"}</span><span class="cola-subtitulo">${total} pendiente${total===1?"":"s"}</span></div><div class="cola-lista">${inventario}${xcc}</div>`;
     if(cambio||!notificacionVisible){
         panel.style.display="block";
         notificacionVisible=true;
         clearTimeout(temporizadorNotificacion);
         temporizadorNotificacion=setTimeout(()=>{
-            if(!sincronizando){panel.style.display="none";notificacionVisible=false;}
+            panel.style.display="none";
+            notificacionVisible=false;
         },7000);
     }
 }
@@ -343,9 +313,6 @@ async function sincronizarPendientes(){
         pendientesInventario=ops.length;
         renderizarEstadoConexion();
         for(const op of ops){
-            operacionSincronizandoId=op.id;
-            operacionSincronizandoOrigen="INVENTARIO";
-            renderizarEstadoConexion();
             const validacion=esOperacionInventarioValida(op);
             if(!validacion.ok){
                 await registrarErrorSincronizacion(op,validacion.error,"INVENTARIO");
@@ -399,8 +366,6 @@ async function sincronizarPendientes(){
         }
     }finally{
         sincronizando=false;
-        operacionSincronizandoId="";
-        operacionSincronizandoOrigen="";
         renderizarEstadoConexion();
         actualizarMovimientos();
         actualizarResumen();
@@ -2079,10 +2044,6 @@ async function sincronizarXCCPendientes(){
         }
         if(pendientesXCC===0)localStorage.removeItem("servitodo_xcc_ultimaEdicion");
     }finally{
-        if(operacionSincronizandoOrigen==="XCC"){
-            operacionSincronizandoId="";
-            operacionSincronizandoOrigen="";
-        }
         renderizarEstadoConexion();
         programarReintentoSincronizacion();
     }
